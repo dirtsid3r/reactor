@@ -215,6 +215,8 @@ function playSound(type) {
  * @param {number} currentIndex - Index of currently active component
  */
 export function updateReactorStatus(solvedIndex, currentIndex) {
+    console.log('Updating reactor status:', { solvedIndex, currentIndex });
+    
     // Handle both array of solved puzzles or single index
     if (Array.isArray(solvedIndex)) {
         reactorState.repairedComponents = [...solvedIndex];
@@ -226,6 +228,11 @@ export function updateReactorStatus(solvedIndex, currentIndex) {
     
     // Update active component
     reactorState.activeComponent = currentIndex;
+    
+    console.log('Reactor state after update:', { 
+        active: reactorState.activeComponent, 
+        repaired: [...reactorState.repairedComponents] 
+    });
     
     // Update component visuals
     updateComponentVisuals();
@@ -241,6 +248,8 @@ export function updateReactorStatus(solvedIndex, currentIndex) {
  * Update the visual appearance of all components
  */
 function updateComponentVisuals() {
+    console.log('Updating component visuals, active component:', reactorState.activeComponent);
+    
     // Reset all components to default state
     for (let i = 0; i < componentLabels.length; i++) {
         const component = document.getElementById(`component-${i}`);
@@ -253,12 +262,14 @@ function updateComponentVisuals() {
             // Add appropriate classes based on state
             if (reactorState.repairedComponents.includes(i)) {
                 component.classList.add('repaired');
+                console.log(`Component ${i} marked as repaired`);
                 // Remove status indicator code for repaired components
                 if (statusIndicator) {
                     statusIndicator.style.display = 'none';
                 }
             } else if (i === reactorState.activeComponent) {
                 component.classList.add('active');
+                console.log(`Component ${i} marked as active, classList:`, component.classList);
                 // Remove status indicator code for active components
                 if (statusIndicator) {
                     statusIndicator.style.display = 'none';
@@ -450,11 +461,19 @@ export function getReactorSchematic() {
     
     const svg = `
     <svg width="100%" height="100%" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+        <!-- Filter definitions -->
+        <defs>
+            <filter id="radarGlow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="2" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+            <radialGradient id="reactorGlow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                <stop offset="0%" style="stop-color:#ff3333;stop-opacity:0.1" />
+                <stop offset="100%" style="stop-color:#000000;stop-opacity:0" />
+            </radialGradient>
+        </defs>
+        
         <!-- Background glow -->
-        <radialGradient id="reactorGlow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-            <stop offset="0%" style="stop-color:#ff3333;stop-opacity:0.1" />
-            <stop offset="100%" style="stop-color:#000000;stop-opacity:0" />
-        </radialGradient>
         <circle cx="200" cy="200" r="180" fill="url(#reactorGlow)" />
         
         <!-- Decorative elements for sci-fi look (behind components) -->
@@ -497,7 +516,10 @@ export function getReactorSchematic() {
         <line x1="120" y1="280" x2="280" y2="120" stroke="#ff3333" stroke-opacity="0.05" stroke-width="1" />
         
         <!-- Radar scanning effect -->
-        <path id="radar-beam" d="M 200,200 L 370,200 A 170 170 0 0 0 200,30 Z" fill="rgba(255, 51, 51, 0.05)" stroke="none">
+        <path id="radar-beam" d="M 200,200 L 370,200 A 170 170 0 0 0 200,30 Z" 
+              fill="rgba(255, 51, 51, 0.1)" 
+              stroke="none"
+              filter="url(#radarGlow)">
             <animateTransform
                 attributeName="transform"
                 attributeType="XML"
@@ -556,6 +578,17 @@ function generateComponentsInCircle() {
     const radius = 120;
     const components = [];
     
+    // Import puzzles data to get custom icons if available
+    let puzzleData = [];
+    try {
+        // Check if we can access puzzles from the game state
+        if (window.gameState && window.gameState.editedPuzzles) {
+            puzzleData = window.gameState.editedPuzzles;
+        }
+    } catch (e) {
+        console.log('Could not access puzzle data for custom icons');
+    }
+    
     // Skip component 2 (core) as it's in the center
     const outerComponents = [...componentLabels];
     outerComponents.splice(2, 1);
@@ -578,11 +611,23 @@ function generateComponentsInCircle() {
         const indicatorX = x + (indicatorDistance * Math.cos(angle));
         const indicatorY = y + (indicatorDistance * Math.sin(angle));
         
-        // Create shape based on component type - removed small decorative circles
+        // Check if custom SVG icon exists
+        let iconContent = `<text x="${x}" y="${y}" class="reactor-label" dy=".3em" font-size="15">${symbol}</text>`;
+        
+        // If puzzle data is available and has custom SVG icon, use it
+        if (puzzleData[originalIndex] && puzzleData[originalIndex].iconSvg) {
+            const customSvg = puzzleData[originalIndex].iconSvg;
+            iconContent = `
+            <g transform="translate(${x-15}, ${y-15}) scale(0.3)">
+                ${customSvg}
+            </g>`;
+        }
+        
+        // Create shape based on component type
         const shape = `
         <g id="component-group-${originalIndex}">
             <circle cx="${x}" cy="${y}" r="30" class="reactor-component" id="component-${originalIndex}" />
-            <text x="${x}" y="${y}" class="reactor-label" dy=".3em" font-size="15">${symbol}</text>
+            ${iconContent}
             
             <!-- Hidden status indicator - kept for compatibility but not displayed -->
             <g id="status-${originalIndex}" class="status-indicator" transform="translate(${indicatorX - 6}, ${indicatorY - 6})" style="display: none;">

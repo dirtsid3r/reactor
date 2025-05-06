@@ -127,6 +127,36 @@
             resize: vertical;
         }
 
+        #component-icon-svg {
+            min-height: 80px;
+        }
+
+        .icon-preview-container {
+            margin-top: 10px;
+            border: 1px dashed #00ff66;
+            padding: 15px;
+            background-color: #001100;
+        }
+
+        .icon-preview {
+            width: 100px;
+            height: 100px;
+            margin: 10px auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000000;
+            border-radius: 50%;
+            border: 2px solid #00ff66;
+        }
+
+        .icon-preview svg {
+            width: 60px;
+            height: 60px;
+            fill: #00ff66;
+            stroke: #00ff66;
+        }
+
         #hints-container {
             margin-bottom: 15px;
         }
@@ -351,6 +381,15 @@
             <div class="admin-form-group">
                 <label class="admin-label" for="component-name">Component Name:</label>
                 <input type="text" id="component-name" class="admin-input">
+            </div>
+            
+            <div class="admin-form-group">
+                <label class="admin-label" for="component-icon-svg">Component Icon (SVG):</label>
+                <textarea id="component-icon-svg" class="admin-textarea" placeholder="Paste your SVG code here..."></textarea>
+                <div class="icon-preview-container">
+                    <label class="admin-label">Icon Preview:</label>
+                    <div id="component-icon-preview" class="icon-preview"></div>
+                </div>
             </div>
             
             <div class="admin-form-group">

@@ -719,11 +719,11 @@ body, #game-container, .screen, .terminal-display, .reactor-schematic {
 }
 
 .reactor-component.active {
-    stroke: #ffff00;
-    stroke-width: 3;
-    filter: drop-shadow(0 0 15px rgba(255, 255, 0, 0.8));
-    animation: pulse-active 1.5s infinite;
-    fill: rgba(50, 50, 0, 0.5);
+    stroke: #ffaa00 !important;
+    stroke-width: 4 !important;
+    filter: drop-shadow(0 0 20px rgba(255, 170, 0, 0.9)) !important;
+    animation: pulse-active 1.5s infinite !important;
+    fill: rgba(80, 50, 0, 0.6) !important;
 }
 
 .reactor-component.error {
@@ -751,12 +751,12 @@ body, #game-container, .screen, .terminal-display, .reactor-schematic {
 
 @keyframes pulse-active {
     0%, 100% { 
-        filter: drop-shadow(0 0 8px rgba(255, 255, 0, 0.6)); 
-        stroke-width: 3;
+        filter: drop-shadow(0 0 10px rgba(255, 170, 0, 0.7)); 
+        stroke-width: 4;
     }
     50% { 
-        filter: drop-shadow(0 0 20px rgba(255, 255, 0, 0.9)); 
-        stroke-width: 4;
+        filter: drop-shadow(0 0 25px rgba(255, 170, 0, 1)); 
+        stroke-width: 5;
     }
 }
 

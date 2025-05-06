@@ -2,8 +2,6 @@
 let timerInterval;
 let timeLeft;
 let timerCallback;
-const countdownElement = document.getElementById('countdown');
-const timerContainer = countdownElement ? countdownElement.parentElement : null;
 
 /**
  * Initialize the timer
@@ -38,6 +36,7 @@ export function initTimer(seconds, callback) {
  * Update the timer display
  */
 function updateTimerDisplay() {
+    const countdownElement = document.getElementById('countdown');
     if (!countdownElement) return;
     
     const minutes = Math.floor(timeLeft / 60);
@@ -50,6 +49,7 @@ function updateTimerDisplay() {
     countdownElement.textContent = formattedTime;
     
     // Update timer container styling based on time remaining
+    const timerContainer = countdownElement.parentElement;
     if (timerContainer) {
         // Clear existing classes
         timerContainer.classList.remove('warning', 'critical');

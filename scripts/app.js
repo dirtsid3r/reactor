@@ -15,6 +15,9 @@ const gameState = {
     editedPuzzles: [...puzzles] // Clone puzzles for editing
 };
 
+// Make gameState available to other modules (for custom icons)
+window.gameState = gameState;
+
 // Admin state
 const adminState = {
     isAdminMode: false,
@@ -232,6 +235,21 @@ function setupAdminPanel() {
     saveAllPuzzlesBtn.addEventListener('click', saveAllPuzzles);
     exportPuzzlesBtn.addEventListener('click', exportPuzzles);
     importPuzzlesBtn.addEventListener('click', importPuzzles);
+    
+    // Add SVG icon preview functionality
+    const iconSvgInput = document.getElementById('component-icon-svg');
+    const iconPreview = document.getElementById('component-icon-preview');
+    
+    iconSvgInput.addEventListener('input', () => {
+        // Update the preview with the SVG code
+        const svgCode = iconSvgInput.value.trim();
+        iconPreview.innerHTML = svgCode;
+        
+        // Safety check - if invalid SVG, clear preview
+        if (svgCode && !iconPreview.querySelector('svg')) {
+            iconPreview.innerHTML = '<div style="color: #ff5555;">Invalid SVG</div>';
+        }
+    });
 }
 
 // Populate puzzle selector dropdown
@@ -269,6 +287,8 @@ function handlePuzzleSelection() {
         initialMessageInput.value = '';
         successMessageInput.value = '';
         hintsContainer.innerHTML = '';
+        document.getElementById('component-icon-svg').value = '';
+        document.getElementById('component-icon-preview').innerHTML = '';
         return;
     }
     
@@ -279,6 +299,18 @@ function handlePuzzleSelection() {
     passphraseInput.value = puzzle.passphrase;
     initialMessageInput.value = puzzle.initialMessage;
     successMessageInput.value = puzzle.successMessage;
+    
+    // Load custom SVG icon if available
+    const iconSvgInput = document.getElementById('component-icon-svg');
+    const iconPreview = document.getElementById('component-icon-preview');
+    
+    if (puzzle.iconSvg) {
+        iconSvgInput.value = puzzle.iconSvg;
+        iconPreview.innerHTML = puzzle.iconSvg;
+    } else {
+        iconSvgInput.value = '';
+        iconPreview.innerHTML = '';
+    }
     
     // Add hint inputs
     hintsContainer.innerHTML = '';
@@ -332,13 +364,17 @@ function savePuzzle() {
         }
     });
     
+    // Get custom SVG icon if available
+    const iconSvg = document.getElementById('component-icon-svg').value.trim();
+    
     // Update puzzle data
     gameState.editedPuzzles[puzzleIndex] = {
         componentName: componentNameInput.value.trim(),
         passphrase: passphraseInput.value.trim(),
         initialMessage: initialMessageInput.value.trim(),
         successMessage: successMessageInput.value.trim(),
-        hints: hints
+        hints: hints,
+        iconSvg: iconSvg // Store the custom SVG icon code
     };
     
     // Update dropdown label
@@ -403,22 +439,31 @@ function startBootSequence() {
     });
 }
 
-// Start the game
+// Start the actual game
 function startGame() {
-    gameState.isGameActive = true;
-    gameState.startTime = new Date();
-    
     // Hide startup screen, show main screen
     startupScreen.classList.add('hidden');
     mainScreen.classList.remove('hidden');
     
-    // Initialize the timer
-    initTimer(2700, () => {
-        gameOver(false);
-    });
+    // Set game as active
+    gameState.isGameActive = true;
+    gameState.startTime = new Date();
+    
+    // Initialize the timer - FIX: Pass seconds first, then the gameOver callback
+    initTimer(45 * 60, () => gameOver(false));
     
     // Load the first puzzle
-    loadPuzzle(gameState.currentPuzzle);
+    loadPuzzle(0);
+    
+    // Initialize reactor with first component active
+    updateReactorStatus([], 0);
+    
+    // Reset tab selection
+    tabs.forEach(tab => tab.classList.remove('active'));
+    tabs[0].classList.add('active');
+    
+    tabContents.forEach(content => content.classList.add('hidden'));
+    tabContents[0].classList.remove('hidden');
 }
 
 // Load a puzzle
@@ -434,6 +479,9 @@ function loadPuzzle(index) {
     
     // Type the puzzle message in the terminal
     typeInTerminal(document.getElementById('terminal-display'), puzzle.initialMessage, 10);
+    
+    // Update reactor status to set active component
+    updateReactorStatus(index - 1, index);
     
     // Focus on the terminal input
     terminalInput.focus();
@@ -727,7 +775,7 @@ function updateReactorProgress() {
     animateValue(reactorPercentage, parseInt(reactorPercentage.textContent), progressPercentage, 1000);
     
     // Update reactor schematic
-    updateReactorStatus(gameState.currentPuzzle - 1);
+    updateReactorStatus(gameState.currentPuzzle - 1, gameState.currentPuzzle);
 }
 
 // Animate value change
