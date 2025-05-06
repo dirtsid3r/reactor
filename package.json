@@ -5,7 +5,9 @@
   "main": "index.html",
   "scripts": {
     "start": "http-server -c-1",
-    "dev": "http-server -c-1"
+    "dev": "http-server -c-1",
+    "build": "mkdir -p dist && cp -R index.html styles scripts data dist/",
+    "vercel-build": "npm run build"
   },
   "keywords": [
     "escape-room",
