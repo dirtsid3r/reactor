@@ -15,46 +15,34 @@ Players solve physical puzzles to discover passphrases that are entered into thi
 - Success and failure screens
 - Detailed terminal messages for each reactor component
 
-## How to Run Locally
+## Deployment Options
 
-1. Clone the repository:
+### GitHub Pages
+
+This project is configured for GitHub Pages deployment. Simply push to the main branch and GitHub Actions will deploy the site.
+
+### Vercel Deployment
+
+To deploy to Vercel:
+
+1. Fork this repository
+2. Create a Vercel account if you don't have one
+3. Import the repository in Vercel
+4. Deploy with default settings
+
+### Local Development
+
+To run locally:
+
+```bash
+# Install dependencies
+npm install
+
+# Start local server
+npm start
+
+# Access at http://localhost:8080
 ```
-git clone https://github.com/yourusername/nrrc-escape-room.git
-cd nrrc-escape-room
-```
-
-2. Open the project in your favorite code editor.
-
-3. If you have Node.js installed, you can use a simple server like `http-server`:
-```
-npm install -g http-server
-http-server
-```
-
-4. Open a browser and navigate to the provided URL (usually http://localhost:8080).
-
-## How to Deploy
-
-The application can be easily deployed on Vercel, Netlify, or GitHub Pages.
-
-### Deploying to Vercel
-
-1. Install the Vercel CLI:
-```
-npm install -g vercel
-```
-
-2. Deploy:
-```
-vercel
-```
-
-### Deploying to GitHub Pages
-
-1. Push your code to a GitHub repository.
-2. Go to the repository settings.
-3. In the "GitHub Pages" section, select the branch you want to deploy from.
-4. Click "Save" and your site will be available at the URL provided.
 
 ## Game Configuration
 
