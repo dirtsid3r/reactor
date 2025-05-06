@@ -1,0 +1,23 @@
+{
+  "name": "nrrc-escape-room",
+  "version": "1.0.0",
+  "description": "Nuclear Carbon Recycling Reactor (N.R.R.C) Escape Room Digital Companion",
+  "main": "index.html",
+  "scripts": {
+    "start": "http-server -c-1",
+    "dev": "http-server -c-1"
+  },
+  "keywords": [
+    "escape-room",
+    "game",
+    "terminal",
+    "sustainability",
+    "nuclear",
+    "carbon"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+} 

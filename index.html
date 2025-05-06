@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>N.R.R.C Terminal</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Emergency fix for corner issues */
+        html, body, #game-container, .header-bar, .title {
+            border-radius: 0 !important;
+            background-clip: padding-box !important;
+        }
+        
+        .title {
+            position: relative;
+            z-index: 1;
+            background-color: transparent !important;
+        }
+        
+        /* Cover any potential white corners */
+        .corner-fix {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            background-color: #000000;
+            z-index: 9999;
+        }
+        
+        .top-left {
+            top: 0;
+            left: 0;
+        }
+        
+        .top-right {
+            top: 0;
+            right: 0;
+        }
+        
+        .bottom-left {
+            bottom: 0;
+            left: 0;
+        }
+        
+        .bottom-right {
+            bottom: 0;
+            right: 0;
+        }
+        
+        .header-corner {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: transparent !important;
+            z-index: 5;
+        }
+
+        /* Admin Panel Styles */
+        #admin-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            z-index: 10000;
+            display: none;
+            flex-direction: column;
+            padding: 20px;
+            overflow: auto;
+        }
+
+        #admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #00ff66;
+        }
+
+        #admin-title {
+            color: #00ff66;
+            font-size: 24px;
+        }
+
+        #close-admin {
+            background-color: #001100;
+            color: #00ff66;
+            border: 1px solid #00ff66;
+            padding: 5px 15px;
+            cursor: pointer;
+        }
+
+        #puzzle-selector {
+            margin-bottom: 20px;
+            padding: 8px;
+            background-color: #000000;
+            color: #00ff66;
+            border: 1px solid #00ff66;
+        }
+
+        .admin-form-group {
+            margin-bottom: 15px;
+        }
+
+        .admin-label {
+            display: block;
+            color: #00ff66;
+            margin-bottom: 5px;
+        }
+
+        .admin-input, .admin-textarea {
+            width: 100%;
+            padding: 8px;
+            background-color: #000000;
+            color: #00ff66;
+            border: 1px solid #00ff66;
+            font-family: 'Courier New', monospace;
+        }
+
+        .admin-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        #hints-container {
+            margin-bottom: 15px;
+        }
+
+        .hint-group {
+            display: flex;
+            margin-bottom: 10px;
+        }
+
+        .hint-input {
+            flex: 1;
+            padding: 8px;
+            background-color: #000000;
+            color: #00ff66;
+            border: 1px solid #00ff66;
+            font-family: 'Courier New', monospace;
+        }
+
+        .remove-hint {
+            background-color: #330000;
+            color: #ff6666;
+            border: 1px solid #ff6666;
+            padding: 0 10px;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+
+        #add-hint {
+            background-color: #001100;
+            color: #00ff66;
+            border: 1px solid #00ff66;
+            padding: 8px 15px;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+
+        #save-puzzle {
+            background-color: #001100;
+            color: #00ff66;
+            border: 1px solid #00ff66;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #save-all-puzzles {
+            background-color: #003300;
+            color: #00ff66;
+            border: 1px solid #00ff66;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+
+        .admin-button-group {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        #export-puzzles {
+            background-color: #001133;
+            color: #66aaff;
+            border: 1px solid #66aaff;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+
+        #import-puzzles {
+            background-color: #113300;
+            color: #66ff66;
+            border: 1px solid #66ff66;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        
+        .admin-info {
+            background-color: #001100;
+            padding: 10px 15px;
+            margin-bottom: 20px;
+            border-left: 3px solid #00ff66;
+        }
+        
+        .admin-info p {
+            color: #00ff66;
+            margin: 0 0 10px 0;
+            font-weight: bold;
+        }
+        
+        .admin-info ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #ccffcc;
+        }
+        
+        .admin-info li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Corner fixes -->
+    <div class="corner-fix top-left"></div>
+    <div class="corner-fix top-right"></div>
+    <div class="corner-fix bottom-left"></div>
+    <div class="corner-fix bottom-right"></div>
+    
+    <div id="game-container">
+        <!-- Header corner fixes -->
+        <div class="header-corner" style="top: 0; left: 0;"></div>
+        <div class="header-corner" style="top: 0; right: 0;"></div>
+        
+        <!-- Startup Screen -->
+        <div id="startup-screen" class="screen">
+            <div class="startup-content">
+                <div class="terminal-header">N.R.R.C TERMINAL BOOT SEQUENCE</div>
+                <div id="boot-text" class="terminal-text"></div>
+                <button id="start-button" class="terminal-button">INITIALIZE SYSTEM</button>
+            </div>
+        </div>
+
+        <!-- Main Game Interface -->
+        <div id="main-screen" class="screen hidden">
+            <div class="header-bar">
+                <div class="title">N.R.R.C TERMINAL</div>
+                <div class="progress-indicator">
+                    <span id="current-puzzle">01</span> of <span id="total-puzzles">09</span>
+                </div>
+            </div>
+            
+            <div class="main-content">
+                <!-- Control Panel with Tabs -->
+                <div class="control-panel">
+                    <!-- Tab navigation now horizontal at top -->
+                    <div class="tab-bar horizontal">
+                        <div class="tab active" data-tab="reactor">Reactor</div>
+                        <div class="tab" data-tab="support">Support</div>
+                    </div>
+                    
+                    <div class="tab-content-container">
+                        <!-- Reactor Tab Content -->
+                        <div id="reactor-tab" class="tab-content active">
+                            <div class="reactor-schematic-container">
+                                <div class="grid-effect" id="grid-effect"></div>
+                                <div class="reactor-schematic" id="reactor-schematic">
+                                    <!-- SVG Reactor Schematic will be inserted here via JS -->
+                                </div>
+                            </div>
+                            <div class="countdown-timer">
+                                <div class="countdown-left">Time to Meltdown: <span id="countdown">45:00</span></div>
+                                <div class="countdown-right">Integrity: <span id="reactor-percentage" data-status="low">0</span>%</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Support Tab Content -->
+                        <div id="support-tab" class="tab-content hidden">
+                            <div class="assistant-header">E.C.H.O. - Environmental Carbon Helper Operative</div>
+                            <div class="assistant-messages" id="assistant-messages"></div>
+                            <div class="assistant-input-area">
+                                <input type="text" id="assistant-input" placeholder="Ask E.C.H.O. something..." autocomplete="off">
+                                <button id="assistant-submit" class="assistant-button">SEND</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Terminal Panel (Always Visible) -->
+                <div class="terminal-panel">
+                    <div class="terminal-header">Machine Fix Terminal</div>
+                    <div class="terminal-display" id="terminal-display"></div>
+                    <div class="terminal-input-area">
+                        <input type="text" id="terminal-input" placeholder="Enter system passphrase..." autocomplete="off">
+                        <button id="terminal-submit" class="terminal-button">UPLOAD</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success Screen -->
+        <div id="success-screen" class="screen hidden">
+            <div class="success-content">
+                <div class="success-header">REACTOR RESTORED</div>
+                <div class="success-message">All systems operational. Carbon recycling process resumed.</div>
+                <div class="success-time">Time remaining: <span id="remaining-time">00:00</span></div>
+                <button id="restart-button" class="terminal-button">RESTART SIMULATION</button>
+            </div>
+        </div>
+
+        <!-- Failure Screen -->
+        <div id="failure-screen" class="screen hidden">
+            <div class="failure-content">
+                <div class="failure-header">CRITICAL FAILURE</div>
+                <div class="failure-message">Reactor meltdown imminent. Simulation terminated.</div>
+                <button id="retry-button" class="terminal-button">RETRY SIMULATION</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Panel -->
+    <div id="admin-panel">
+        <div id="admin-header">
+            <div id="admin-title">N.R.R.C Admin Control Panel</div>
+            <button id="close-admin">CLOSE</button>
+        </div>
+        
+        <div class="admin-info">
+            <p>Admin Shortcuts:</p>
+            <ul>
+                <li>Alt+A: Toggle Admin Panel</li>
+                <li>Type "adminaccess" in terminal to open Admin Panel</li>
+                <li>Type "resetgame" in terminal for emergency reset</li>
+            </ul>
+        </div>
+        
+        <select id="puzzle-selector">
+            <option value="-1">Select a puzzle to edit...</option>
+            <!-- Will be populated dynamically -->
+        </select>
+        
+        <div id="puzzle-editor">
+            <div class="admin-form-group">
+                <label class="admin-label" for="component-name">Component Name:</label>
+                <input type="text" id="component-name" class="admin-input">
+            </div>
+            
+            <div class="admin-form-group">
+                <label class="admin-label" for="passphrase">Passphrase:</label>
+                <input type="text" id="passphrase" class="admin-input">
+            </div>
+            
+            <div class="admin-form-group">
+                <label class="admin-label" for="initial-message">Initial Message:</label>
+                <textarea id="initial-message" class="admin-textarea"></textarea>
+            </div>
+            
+            <div class="admin-form-group">
+                <label class="admin-label" for="success-message">Success Message:</label>
+                <textarea id="success-message" class="admin-textarea"></textarea>
+            </div>
+            
+            <div class="admin-form-group">
+                <label class="admin-label">Hints:</label>
+                <div id="hints-container">
+                    <!-- Hint inputs will be added here dynamically -->
+                </div>
+                <button id="add-hint">+ Add Hint</button>
+            </div>
+            
+            <button id="save-puzzle">Save Puzzle</button>
+            <button id="save-all-puzzles">Save All Puzzles</button>
+            
+            <div class="admin-button-group">
+                <button id="export-puzzles">Export Puzzles</button>
+                <button id="import-puzzles">Import Puzzles</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="scripts/app.js" type="module"></script>
+    <script>
+        // Prevent context menu to enhance immersion
+        document.addEventListener('contextmenu', event => event.preventDefault());
+        
+        // Force constant dimensions and prevent any resizing
+        function lockDimensions() {
+            document.documentElement.style.width = '100vw';
+            document.documentElement.style.height = '100vh';
+            document.body.style.width = '100vw';
+            document.body.style.height = '100vh';
+            document.getElementById('game-container').style.width = '100vw';
+            document.getElementById('game-container').style.height = '100vh';
+            
+            // Fix any potential corner issues
+            document.querySelectorAll('.corner-fix').forEach(corner => {
+                corner.style.backgroundColor = '#000000';
+            });
+            
+            document.querySelectorAll('.header-corner').forEach(corner => {
+                corner.style.backgroundColor = 'transparent';
+            });
+            
+            // Ensure title is visible
+            document.querySelectorAll('.title').forEach(title => {
+                title.style.backgroundColor = 'transparent';
+                title.style.zIndex = '10';
+            });
+        }
+        
+        // Run on load and periodically to ensure consistent size
+        window.addEventListener('load', lockDimensions);
+        window.addEventListener('resize', lockDimensions);
+        setInterval(lockDimensions, 500); // Check more frequently
+
+        // Mouse interaction script for grid effect
+        document.addEventListener('DOMContentLoaded', function() {
+            const gridContainer = document.getElementById('reactor-tab');
+            const gridEffect = document.getElementById('grid-effect');
+            
+            if (gridContainer && gridEffect) {
+                // Create grid cells dynamically
+                const cellSize = 20;
+                const rows = Math.ceil(gridContainer.offsetHeight / cellSize);
+                const cols = Math.ceil(gridContainer.offsetWidth / cellSize);
+                
+                for (let i = 0; i < rows * cols; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-cell';
+                    cell.style.position = 'absolute';
+                    cell.style.width = '2px';
+                    cell.style.height = '2px';
+                    cell.style.backgroundColor = 'rgba(255, 51, 51, 0.08)';
+                    cell.style.transition = 'transform 0.3s ease-out';
+                    
+                    // Position cells in a grid
+                    const row = Math.floor(i / cols);
+                    const col = i % cols;
+                    cell.style.top = (row * cellSize) + 'px';
+                    cell.style.left = (col * cellSize) + 'px';
+                    
+                    gridEffect.appendChild(cell);
+                }
+                
+                // Handle mouse movement
+                gridContainer.addEventListener('mousemove', function(e) {
+                    const rect = gridContainer.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    // Apply distortion effect
+                    const cells = gridEffect.querySelectorAll('.grid-cell');
+                    cells.forEach(function(cell) {
+                        const cellRect = cell.getBoundingClientRect();
+                        const cellX = cellRect.left - rect.left + (cellRect.width / 2);
+                        const cellY = cellRect.top - rect.top + (cellRect.height / 2);
+                        
+                        // Calculate distance from mouse to cell
+                        const distX = x - cellX;
+                        const distY = y - cellY;
+                        const distance = Math.sqrt(distX * distX + distY * distY);
+                        
+                        // Apply distortion if within range
+                        if (distance < 150) {
+                            const strength = (1 - distance / 150) * 15;
+                            const moveX = (distX / distance) * strength;
+                            const moveY = (distY / distance) * strength;
+                            cell.style.transform = `translate(${moveX}px, ${moveY}px)`;
+                        } else {
+                            cell.style.transform = 'translate(0, 0)';
+                        }
+                    });
+                });
+                
+                // Reset on mouse leave
+                gridContainer.addEventListener('mouseleave', function() {
+                    const cells = gridEffect.querySelectorAll('.grid-cell');
+                    cells.forEach(function(cell) {
+                        cell.style.transform = 'translate(0, 0)';
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html> 
