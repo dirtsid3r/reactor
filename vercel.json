@@ -11,6 +11,16 @@
     }
   ],
   "routes": [
+    { 
+      "src": "/assets/sounds/(.*)\\.mp3", 
+      "headers": { "content-type": "audio/mpeg" },
+      "dest": "/assets/sounds/$1.mp3"
+    },
+    { 
+      "src": "/public/(.*)\\.mp3", 
+      "headers": { "content-type": "audio/mpeg" },
+      "dest": "/public/$1.mp3"
+    },
     {
       "src": "/(.*)",
       "dest": "/$1"

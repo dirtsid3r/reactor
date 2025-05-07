@@ -135,6 +135,35 @@ const soundFiles = {
     hint: 'assets/sounds/hint.mp3'
 };
 
+// Add debugging info to the page
+function addDebugInfo(message) {
+    console.log("DEBUG:", message);
+    // Only add visible debug in development
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        const debugContainer = document.getElementById('debug-container') || (() => {
+            const container = document.createElement('div');
+            container.id = 'debug-container';
+            container.style.position = 'fixed';
+            container.style.bottom = '10px';
+            container.style.left = '10px';
+            container.style.backgroundColor = 'rgba(0,0,0,0.8)';
+            container.style.color = '#ff0';
+            container.style.padding = '10px';
+            container.style.fontFamily = 'monospace';
+            container.style.fontSize = '12px';
+            container.style.zIndex = '9999';
+            container.style.maxHeight = '200px';
+            container.style.overflow = 'auto';
+            document.body.appendChild(container);
+            return container;
+        })();
+        
+        const msgElem = document.createElement('div');
+        msgElem.textContent = message;
+        debugContainer.appendChild(msgElem);
+    }
+}
+
 const soundManager = {
     sounds: {},
     humInstance: null,
@@ -143,10 +172,54 @@ const soundManager = {
         console.log('Loading sound files...');
         for (const [key, src] of Object.entries(soundFiles)) {
             console.log(`Loading sound: ${key} from ${src}`);
+            addDebugInfo(`Loading sound: ${key} from ${src}`);
+            
             const audio = new Audio(src);
+            
+            // Add canplaythrough event listener
+            audio.addEventListener('canplaythrough', () => {
+                console.log(`Sound ${key} loaded successfully`);
+                addDebugInfo(`Sound ${key} loaded successfully`);
+            });
+            
             audio.onerror = (e) => {
                 console.error(`Failed to load sound ${key} from ${src}:`, e);
+                addDebugInfo(`Failed to load sound ${key} from ${src}: ${e.target.error ? e.target.error.code : 'unknown error'}`);
+                
+                // Try an alternative approach for MP3 files
+                if (src.endsWith('.mp3')) {
+                    // Create a fetch request to check if the file exists
+                    fetch(src)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            addDebugInfo(`Fetch for ${src} succeeded, but Audio API failed. Status: ${response.status}`);
+                            return response.blob();
+                        })
+                        .then(blob => {
+                            // Try to create an object URL
+                            const objectUrl = URL.createObjectURL(blob);
+                            addDebugInfo(`Created object URL for ${key}: ${objectUrl}`);
+                            
+                            const newAudio = new Audio(objectUrl);
+                            newAudio.volume = audio.volume;
+                            this.sounds[key] = newAudio;
+                            
+                            newAudio.addEventListener('canplaythrough', () => {
+                                addDebugInfo(`Sound ${key} loaded successfully via blob`);
+                            });
+                            
+                            newAudio.onerror = (err) => {
+                                addDebugInfo(`Still failed to load ${key} via blob: ${err}`);
+                            };
+                        })
+                        .catch(error => {
+                            addDebugInfo(`Fetch for ${src} failed: ${error.message}`);
+                        });
+                }
             };
+            
             if (key === 'hum') {
                 audio.loop = true;
                 audio.volume = 0.18;
@@ -173,32 +246,117 @@ const soundManager = {
                 this.humInstance = this.sounds.hum.cloneNode();
                 this.humInstance.loop = true;
                 this.humInstance.volume = this.sounds.hum.volume;
-                this.humInstance.play().catch(e => {
-                    console.warn('Hum play failed:', e);
-                    // Try reloading the audio
-                    setTimeout(() => {
-                        const newHum = new Audio(soundFiles.hum + '?t=' + Date.now());
-                        newHum.loop = true;
-                        newHum.volume = this.sounds.hum.volume;
-                        newHum.play().catch(err => console.error('Retry hum failed:', err));
-                        this.humInstance = newHum;
-                    }, 1000);
-                });
+                
+                // Try to play the hum with better error handling
+                try {
+                    const playPromise = this.humInstance.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(e => {
+                            console.warn('Hum play failed:', e);
+                            addDebugInfo(`Hum play failed: ${e.message}`);
+                            
+                            // Try to recreate and reload the audio
+                            setTimeout(() => {
+                                try {
+                                    // Try with fetch first
+                                    fetch(soundFiles.hum)
+                                        .then(response => {
+                                            if (!response.ok) {
+                                                throw new Error(`HTTP error! status: ${response.status}`);
+                                            }
+                                            return response.blob();
+                                        })
+                                        .then(blob => {
+                                            const objectUrl = URL.createObjectURL(blob);
+                                            const newHum = new Audio(objectUrl);
+                                            newHum.loop = true;
+                                            newHum.volume = this.sounds.hum.volume;
+                                            newHum.play().catch(err => {
+                                                console.error('Retry hum via blob failed:', err);
+                                                addDebugInfo(`Retry hum via blob failed: ${err.message}`);
+                                            });
+                                            this.humInstance = newHum;
+                                        })
+                                        .catch(error => {
+                                            console.error('Fetch for hum failed:', error);
+                                            addDebugInfo(`Fetch for hum failed: ${error.message}`);
+                                            
+                                            // Traditional approach as last resort
+                                            const newHum = new Audio(soundFiles.hum + '?t=' + Date.now());
+                                            newHum.loop = true;
+                                            newHum.volume = this.sounds.hum.volume;
+                                            newHum.play().catch(err => {
+                                                console.error('Last resort hum failed:', err);
+                                                addDebugInfo(`Last resort hum failed: ${err.message}`);
+                                            });
+                                            this.humInstance = newHum;
+                                        });
+                                } catch (fetchError) {
+                                    console.error('Error setting up hum retry:', fetchError);
+                                    addDebugInfo(`Error setting up hum retry: ${fetchError.message}`);
+                                }
+                            }, 1000);
+                        });
+                    }
+                } catch (e) {
+                    console.error('Error playing hum:', e);
+                    addDebugInfo(`Error playing hum: ${e.message}`);
+                }
             } else if (this.humInstance.paused) {
-                this.humInstance.play().catch(e => console.warn('Hum play failed:', e));
+                this.humInstance.play().catch(e => {
+                    console.warn('Hum play failed on resume:', e);
+                    addDebugInfo(`Hum play failed on resume: ${e.message}`);
+                });
             }
             return;
         }
+        
         if (this.sounds[key]) {
-            const sfx = this.sounds[key].cloneNode();
-            sfx.volume = this.sounds[key].volume;
-            sfx.play().catch(e => {
-                console.warn(`Sound ${key} play failed:`, e);
-                // Try reloading the audio with cache busting
-                const newSfx = new Audio(soundFiles[key] + '?t=' + Date.now());
-                newSfx.volume = this.sounds[key].volume;
-                newSfx.play().catch(err => console.error(`Retry ${key} failed:`, err));
-            });
+            try {
+                const sfx = this.sounds[key].cloneNode();
+                sfx.volume = this.sounds[key].volume;
+                
+                const playPromise = sfx.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(e => {
+                        console.warn(`Sound ${key} play failed:`, e);
+                        addDebugInfo(`Sound ${key} play failed: ${e.message}`);
+                        
+                        // Try with fetch as an alternative
+                        fetch(soundFiles[key])
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error(`HTTP error! status: ${response.status}`);
+                                }
+                                return response.blob();
+                            })
+                            .then(blob => {
+                                const objectUrl = URL.createObjectURL(blob);
+                                const newSfx = new Audio(objectUrl);
+                                newSfx.volume = this.sounds[key].volume;
+                                newSfx.play().catch(err => {
+                                    console.error(`Retry ${key} via blob failed:`, err);
+                                    addDebugInfo(`Retry ${key} via blob failed: ${err.message}`);
+                                });
+                            })
+                            .catch(error => {
+                                console.error(`Fetch for ${key} failed:`, error);
+                                addDebugInfo(`Fetch for ${key} failed: ${error.message}`);
+                                
+                                // Last resort - try a different URL with cache busting
+                                const newSfx = new Audio(soundFiles[key] + '?t=' + Date.now());
+                                newSfx.volume = this.sounds[key].volume;
+                                newSfx.play().catch(err => console.error(`Last resort ${key} failed:`, err));
+                            });
+                    });
+                }
+            } catch (e) {
+                console.error(`Error playing ${key}:`, e);
+                addDebugInfo(`Error playing ${key}: ${e.message}`);
+            }
+        } else {
+            console.warn(`Sound ${key} not loaded`);
+            addDebugInfo(`Sound ${key} not loaded`);
         }
     },
     stopHum() {
@@ -1023,518 +1181,83 @@ function savePuzzle() {
         };
     }
     
-    // Update puzzle data
-    gameState.editedPuzzles[puzzleIndex] = puzzleData;
+    // Save puzzle data to localStorage
+    localStorage.setItem('nrrcPuzzles', JSON.stringify(puzzleData));
     
-    // Update dropdown label
-    populatePuzzleSelector();
-    puzzleSelector.value = puzzleIndex;
+    // Reset admin panel
+    toggleAdminPanel();
     
-    alert(`Puzzle ${puzzleIndex + 1} saved successfully!`);
+    // Reset game state
+    resetGame();
+    
+    // Show success message
+    appendToTerminalWithFormatting('\n\n> PUZZLE SAVED SUCCESSFULLY\n> RESETTING ALL SYSTEMS...');
 }
 
-// Save all puzzles to localStorage
+// Save all puzzles
 function saveAllPuzzles() {
-    localStorage.setItem('nrrcPuzzles', JSON.stringify(gameState.editedPuzzles));
-    alert('All puzzles saved to localStorage!');
-}
-
-// Export puzzles to JSON file
-function exportPuzzles() {
-    const puzzlesJson = JSON.stringify(gameState.editedPuzzles, null, 2);
-    const blob = new Blob([puzzlesJson], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
+    // Save each puzzle to localStorage
+    gameState.editedPuzzles.forEach(puzzle => {
+        savePuzzle(puzzle);
+    });
     
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'nrrc_puzzles.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // Show success message
+    appendToTerminalWithFormatting('\n\n> ALL PUZZLES SAVED SUCCESSFULLY\n> RESETTING ALL SYSTEMS...');
+    
+    // Reset game state
+    resetGame();
 }
 
-// Import puzzles from JSON file
+// Export puzzles
+function exportPuzzles() {
+    // Convert puzzles to JSON string
+    const puzzlesJson = JSON.stringify(gameState.editedPuzzles);
+    
+    // Create a Blob with the JSON data
+    const blob = new Blob([puzzlesJson], { type: 'application/json' });
+    
+    // Create a download link
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'nrrc_puzzles.json';
+    link.click();
+    
+    // Clean up
+    URL.revokeObjectURL(link.href);
+}
+
+// Import puzzles
 function importPuzzles() {
+    // Trigger file input
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
-    
-    input.onchange = (e) => {
-        const file = e.target.files[0];
+    input.onchange = function(event) {
+        const file = event.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (event) => {
+            reader.onload = function(e) {
+                const puzzlesJson = e.target.result;
                 try {
-                    const importedPuzzles = JSON.parse(event.target.result);
-                    gameState.editedPuzzles = importedPuzzles;
-                    populatePuzzleSelector();
-                    alert('Puzzles imported successfully!');
+                    const puzzles = JSON.parse(puzzlesJson);
+                    gameState.editedPuzzles = puzzles;
+                    gameState.totalPuzzles = puzzles.length;
+                    console.log('Loaded puzzles from file');
+                    
+                    // Reset admin panel
+                    toggleAdminPanel();
+                    
+                    // Reset game state
+                    resetGame();
+                    
+                    // Show success message
+                    appendToTerminalWithFormatting('\n\n> PUZZLES IMPORTED SUCCESSFULLY\n> RESETTING ALL SYSTEMS...');
                 } catch (error) {
-                    alert('Error importing puzzles: ' + error.message);
+                    console.error('Error loading puzzles:', error);
                 }
             };
             reader.readAsText(file);
         }
     };
-    
     input.click();
 }
-
-// Start the actual game
-function startGame() {
-    // Hide startup screen, show main screen
-    startupScreen.classList.add('hidden');
-    mainScreen.classList.remove('hidden');
-    // Stop and reset audio if still playing
-    const transmissionAudio = document.getElementById('transmission-audio');
-    if (transmissionAudio) {
-        transmissionAudio.pause();
-        transmissionAudio.currentTime = 0;
-    }
-    // Set game as active
-    gameState.isGameActive = true;
-    gameState.startTime = new Date();
-    
-    // Initialize the timer - FIX: Pass seconds first, then the gameOver callback
-    initTimer(45 * 60, () => gameOver(false));
-    
-    // Load the first puzzle
-    loadPuzzle(0);
-    
-    // Initialize reactor with first component active
-    updateReactorStatus([], 0);
-    
-    // Reset tab selection
-    tabs.forEach(tab => tab.classList.remove('active'));
-    tabs[0].classList.add('active');
-    
-    tabContents.forEach(content => content.classList.add('hidden'));
-    tabContents[0].classList.remove('hidden');
-
-    // Clear localStorage for a clean state
-    localStorage.removeItem('nrrcPuzzles');
-}
-
-// Load a puzzle
-function loadPuzzle(index) {
-    console.log('Loading puzzle', index);
-    // Update the current puzzle indicator
-    currentPuzzleElement.textContent = (index + 1).toString().padStart(2, '0');
-    // Get the current puzzle from edited puzzles
-    const puzzle = gameState.editedPuzzles[index];
-    // Clear the terminal
-    clearTerminal();
-    // Type the puzzle message in the terminal (restore typewriter effect)
-    typeInTerminal(document.getElementById('terminal-display'), puzzle.initialMessage, 10, () => {
-        // After displaying the initial message, check if this is a sorting puzzle
-        if (puzzle.puzzleType === 'sorting') {
-            // Initialize sorting puzzle
-            initSortingPuzzle(puzzle.sortingData, () => {
-                // Callback for when puzzle is completed - not used currently,
-                // as the user still needs to enter the passphrase
-            });
-        }
-    });
-    // Update reactor status to set active component
-    updateReactorStatus(index - 1, index);
-    // Focus on the terminal input
-    terminalInput.focus();
-}
-
-// Helper to append normal or system text to terminal
-function appendPuzzleMessage(text, componentName = null) {
-    // Add green system message above each puzzle
-    if (componentName) {
-        appendToTerminalWithFormatting(`\n<span class=\"system-text\">&gt; COMPONENT REPAIR INITIATED: ${componentName.toUpperCase()}</span>`);
-    }
-    // If text starts with '>', treat as system message
-    if (/^>/.test(text.trim())) {
-        appendToTerminalWithFormatting(`\n<span class=\"system-text\">${text}</span>`);
-    } else {
-        appendToTerminalWithFormatting(`\n<span class=\"terminal-normal\">${text}</span>`);
-    }
-    // Remove any lingering terminal cursor after output
-    const terminal = document.getElementById('terminal-display');
-    const cursor = terminal && terminal.querySelector('.terminal-cursor');
-    if (cursor) cursor.remove();
-}
-
-// Handle terminal submit
-function handleTerminalSubmit() {
-    const userInput = terminalInput.value.trim();
-    if (userInput === '') return;
-    // Show green system message for processing
-    appendToTerminalWithFormatting('\n<span class="system-text">&gt; Processing passphrase...</span>');
-    // Get current puzzle from edited puzzles
-    const puzzle = gameState.editedPuzzles[gameState.currentPuzzle];
-    console.log('Current puzzle index:', gameState.currentPuzzle, 'User input:', userInput, 'Expected:', puzzle.passphrase);
-    setTimeout(() => {
-        if (userInput.toLowerCase() === puzzle.passphrase.toLowerCase()) {
-            // Success animation
-            document.getElementById('terminal-display').classList.add('success-flash');
-            setTimeout(() => {
-                document.getElementById('terminal-display').classList.remove('success-flash');
-            }, 500);
-            // Clear the input
-            terminalInput.value = '';
-            // Clean up sorting puzzle if active
-            if (isSortingPuzzleActive()) {
-                cleanupSortingPuzzle();
-            }
-            // Update terminal with success message
-            clearTerminal();
-            typeInTerminal(document.getElementById('terminal-display'), puzzle.successMessage, 10, () => {
-                // Add confirmation prompt at the end - using ENTER key instead of typing "continue"
-                appendToTerminalWithFormatting('\n\n<span class="system-text">&gt; COMPONENT REPAIR COMPLETE</span>\n<span class="system-text">&gt; Press ENTER to continue to the next component...</span>');
-                // Focus back on the terminal input
-                terminalInput.focus();
-                // Disable normal terminal submission temporarily
-                const originalSubmitHandler = terminalInput.onkeypress;
-                terminalInput.onkeypress = null;
-                // Create one-time event listener for the confirmation
-                const confirmationHandler = function(e) {
-                    if (e.key === 'Enter') {
-                        // Remove this event listener once confirmed
-                        terminalInput.removeEventListener('keypress', confirmationHandler);
-                        // Restore original handler if there was one
-                        if (originalSubmitHandler) {
-                            terminalInput.onkeypress = originalSubmitHandler;
-                        }
-                        // Clear the input
-                        terminalInput.value = '';
-                        // Update the reactor status
-                        gameState.currentPuzzle++;
-                        console.log('Advancing to puzzle', gameState.currentPuzzle);
-                        updateReactorProgress();
-                        // Check if all puzzles are solved
-                        if (gameState.currentPuzzle >= gameState.totalPuzzles) {
-                            gameOver(true);
-                        } else {
-                            // Load the next puzzle
-                            loadPuzzle(gameState.currentPuzzle);
-                        }
-                        // Prevent default Enter behavior
-                        e.preventDefault();
-                        return false;
-                    }
-                };
-                // Add temporary event listener for confirmation
-                terminalInput.addEventListener('keypress', confirmationHandler);
-                // Also update the submit button to handle the confirmation
-                const submitClickHandler = function() {
-                    // Remove event listeners
-                    terminalInput.removeEventListener('keypress', confirmationHandler);
-                    terminalSubmit.removeEventListener('click', submitClickHandler);
-                    // Restore original handler if there was one
-                    if (originalSubmitHandler) {
-                        terminalInput.onkeypress = originalSubmitHandler;
-                    }
-                    // Clear the input
-                    terminalInput.value = '';
-                    // Update the reactor status
-                    gameState.currentPuzzle++;
-                    console.log('Advancing to puzzle', gameState.currentPuzzle);
-                    updateReactorProgress();
-                    // Check if all puzzles are solved
-                    if (gameState.currentPuzzle >= gameState.totalPuzzles) {
-                        gameOver(true);
-                    } else {
-                        // Load the next puzzle
-                        loadPuzzle(gameState.currentPuzzle);
-                    }
-                };
-                // Add temporary event listener for submit button
-                terminalSubmit.addEventListener('click', submitClickHandler);
-            });
-            playSuccessSound();
-        } else {
-            // Error animation
-            document.getElementById('terminal-display').classList.add('error-shake');
-            setTimeout(() => {
-                document.getElementById('terminal-display').classList.remove('error-shake');
-            }, 500);
-            // Show error message
-            appendToTerminalWithFormatting('\n\n<span class="system-text">&gt; ERROR: Invalid passphrase. Please try again.</span>');
-            // Clear the input
-            terminalInput.value = '';
-            playErrorSound();
-        }
-    }, 600); // Short delay for effect
-}
-
-// Helper to add a chat message with delay for chat-like effect
-function addChatMessages(messages, sender = 'ai', delay = 700, finalCallback = null) {
-    let i = 0;
-    function next() {
-        if (i < messages.length) {
-            addMessageToChat(messages[i], sender);
-            i++;
-            setTimeout(next, delay);
-        } else if (finalCallback) {
-            finalCallback();
-        }
-    }
-    next();
-}
-
-// Update E.C.H.O. intro message to match transmission script
-function getEchoIntroMessages() {
-    return [
-        "SYSTEM BOOT SEQUENCE INITIATED...",
-        "Loading E.C.H.O. v2.7.3 (Environmental Carbon Helper Operative)...",
-        "VERBOSITY_LEVEL = HIGH | HUMOR_MODULE = ENABLED | SARCASM_THRESHOLD = REDUCED",
-        "Greetings, operator. I am E.C.H.O., your Environmental Carbon Helper Operative. ATHENA has authorized me to assist you in restoring reactor functionality.",
-        "Please note: my behavioral matrix has been affected by the ongoing emergency. Expect directness, occasional dry humor, and a focus on mission-critical information.",
-        "How can I assist you? Type 'hint' for a clue about the current component, or ask a question about the reactor or procedures."
-    ];
-}
-
-// Handle AI assistant submit
-function handleAssistantSubmit() {
-    const userInput = assistantInput.value.trim();
-    if (userInput === '') return;
-    addMessageToChat(userInput, 'user');
-    assistantInput.value = '';
-    const thinkingElement = document.createElement('div');
-    thinkingElement.classList.add('thinking');
-    thinkingElement.innerHTML = 'E.C.H.O. is processing<span class="thinking-dots"></span>';
-    assistantMessages.appendChild(thinkingElement);
-    assistantMessages.scrollTop = assistantMessages.scrollHeight;
-    const puzzle = gameState.editedPuzzles[gameState.currentPuzzle];
-    setTimeout(() => {
-        assistantMessages.removeChild(thinkingElement);
-        const lowerInput = userInput.toLowerCase();
-        const isAskingForHint = lowerInput.includes('hint') || lowerInput.includes('help') || lowerInput.includes('clue');
-        const isGreeting = lowerInput.includes('hello') || lowerInput.includes('hi') || lowerInput.includes('hey') || lowerInput === 'hello' || lowerInput === 'hi';
-        const isAskingAboutAssistant = lowerInput.includes('who are you') || lowerInput.includes('what are you') || lowerInput.includes('your name') || lowerInput.includes('about you');
-        const isAskingAboutProcess = lowerInput.includes('carbon') || lowerInput.includes('nuclear') || lowerInput.includes('recycling') || lowerInput.includes('how does this work') || lowerInput.includes('what is this');
-        const isAskingAboutReactor = lowerInput.includes('reactor') || lowerInput.includes('nuclear') || lowerInput.includes('carbon') || lowerInput.includes('carbon dioxide') || lowerInput.includes('fuel');
-        const isThanking = lowerInput.includes('thank') || lowerInput.includes('thanks') || lowerInput.includes('thx');
-        const isCommentingOnAI = lowerInput.includes('ai') || lowerInput.includes('robot') || lowerInput.includes('chatbot') || lowerInput.includes('assistant') || lowerInput.includes('smart');
-        const isAskingObvious = lowerInput.includes('what is your purpose') || lowerInput.includes('meaning of life') || lowerInput.includes('are you alive') || lowerInput.includes('are you human');
-        if (isAskingForHint) {
-            // Only show the hint, no extra facts or preamble
-            const hintIndex = Math.min(gameState.hintsUsed, puzzle.hints.length - 1);
-            const hint = puzzle.hints[hintIndex];
-            addChatMessages([hint], 'ai', 0);
-            gameState.hintsUsed++;
-            playHintSound();
-        } else if (isGreeting) {
-            addChatMessages([
-                "Hello, operator.",
-                "E.C.H.O. online and ready to assist. Please specify your request."
-            ], 'ai', 900);
-        } else if (isAskingAboutAssistant) {
-            addChatMessages([
-                "I am E.C.H.O. - Environmental Carbon Helper Operative.",
-                "My primary function is to assist with reactor restoration and provide mission-critical information.",
-                "ATHENA has authorized my support during this emergency."
-            ], 'ai', 900);
-        } else if (isAskingAboutProcess) {
-            addChatMessages([
-                "The N.R.R.C. uses advanced nuclear carbon recycling to convert atmospheric CO₂ into synthetic fuels.",
-                "Your task is to restore the reactor and resume this process before critical failure."
-            ], 'ai', 900);
-        } else if (isAskingAboutReactor) {
-            addChatMessages([
-                "The reactor is the heart of the facility. It's responsible for converting atmospheric CO₂ into synthetic fuels.",
-                "Restoring the reactor is crucial for resuming the carbon recycling process."
-            ], 'ai', 900);
-        } else if (isThanking) {
-            addChatMessages([
-                "Acknowledged. Gratitude protocols engaged.",
-                "Let me know if you require further assistance."
-            ], 'ai', 900);
-        } else if (isCommentingOnAI) {
-            addChatMessages([
-                "I am an AI, but my behavioral matrix has been affected by the emergency.",
-                "Expect directness, dry humor, and a focus on mission objectives."
-            ], 'ai', 900);
-        } else if (isAskingObvious) {
-            addChatMessages([
-                "My purpose is to assist you in preventing reactor meltdown.",
-                "Existential queries are deprioritized until after the emergency is resolved."
-            ], 'ai', 900);
-        } else {
-            addChatMessages([
-                "Query received.",
-                "Please clarify your request or type 'hint' for a clue about the current component."
-            ], 'ai', 900);
-        }
-    }, 1000);
-}
-
-// Add a message to the AI chat
-function addMessageToChat(message, sender) {
-    const messageElement = document.createElement('div');
-    messageElement.classList.add('message');
-    messageElement.classList.add(sender === 'user' ? 'user-message' : 'ai-message');
-    messageElement.textContent = message;
-    
-    assistantMessages.appendChild(messageElement);
-    assistantMessages.scrollTop = assistantMessages.scrollHeight;
-}
-
-// Update reactor progress
-function updateReactorProgress() {
-    const progressPercentage = Math.floor((gameState.currentPuzzle / gameState.totalPuzzles) * 100);
-    
-    // Update percentage text with animation
-    animateValue(reactorPercentage, parseInt(reactorPercentage.textContent), progressPercentage, 1000);
-    
-    // Update reactor schematic
-    updateReactorStatus(gameState.currentPuzzle - 1, gameState.currentPuzzle);
-}
-
-// Animate value change
-function animateValue(element, start, end, duration) {
-    let startTime = null;
-    
-    function animation(currentTime) {
-        if (startTime === null) startTime = currentTime;
-        const timeElapsed = currentTime - startTime;
-        const progress = Math.min(timeElapsed / duration, 1);
-        const value = Math.floor(progress * (end - start) + start);
-        
-        element.textContent = value;
-        
-        if (progress < 1) {
-            requestAnimationFrame(animation);
-        }
-    }
-    
-    requestAnimationFrame(animation);
-}
-
-// Game over
-function gameOver(success) {
-    gameState.isGameActive = false;
-    gameState.endTime = new Date();
-    
-    // Stop the timer
-    stopTimer();
-    
-    // Hide main screen
-    mainScreen.classList.add('hidden');
-    
-    if (success) {
-        // Show success screen
-        successScreen.classList.remove('hidden');
-        
-        // Update remaining time
-        remainingTimeElement.textContent = getTimeRemaining();
-    } else {
-        // Show failure screen
-        failureScreen.classList.remove('hidden');
-    }
-}
-
-// Reset the game
-function resetGame() {
-    // Reset game state
-    gameState.currentPuzzle = 0;
-    gameState.hintsUsed = 0;
-    gameState.isGameActive = false;
-    gameState.startTime = null;
-    gameState.endTime = null;
-    
-    // Hide all screens
-    startupScreen.classList.remove('hidden');
-    mainScreen.classList.add('hidden');
-    successScreen.classList.add('hidden');
-    failureScreen.classList.add('hidden');
-    
-    // Reset terminal
-    clearTerminal();
-    terminalInput.value = '';
-    
-    // Reset AI Assistant
-    assistantMessages.innerHTML = '';
-    assistantInput.value = '';
-    
-    // Reset reactor status
-    reactorPercentage.textContent = '0';
-    for (let i = 0; i < gameState.totalPuzzles; i++) {
-        const component = document.getElementById(`component-${i}`);
-        if (component) {
-            component.classList.remove('fixed');
-        }
-    }
-    
-    // Reset boot sequence
-    bootText.innerHTML = '';
-    startButton.style.display = 'none';
-    
-    // Reset video and show video briefing container
-    if (briefingVideo) {
-        briefingVideo.currentTime = 0;
-        briefingVideo.pause();
-    }
-    videoBriefingContainer.classList.remove('hidden');
-    bootSequenceContainer.classList.add('hidden');
-    
-    // Setup video briefing again
-    setupVideoBriefing();
-
-    // Clear localStorage for a clean state
-    localStorage.removeItem('nrrcPuzzles');
-}
-
-// Append text to the terminal - maintains backward compatibility
-function appendToTerminal(text) {
-    appendToTerminalWithFormatting(text);
-}
-
-// --- TIMER TICK SOUND ---
-// Patch timer.js usage to play tick sound every second
-import * as timerModule from './timer.js';
-const originalInitTimer = timerModule.initTimer;
-timerModule.initTimer = function(seconds, onEnd) {
-    let tickInterval = setInterval(() => {
-        try {
-            soundManager.sounds.tick.volume = 0.7; // Louder tick
-            soundManager.play('tick');
-        } catch (e) {
-            console.warn('Tick sound failed:', e);
-        }
-    }, 1000);
-    const stopTick = () => clearInterval(tickInterval);
-    originalInitTimer.call(this, seconds, function() {
-        stopTick();
-        if (onEnd) onEnd();
-    });
-    window.addEventListener('gameover', stopTick, { once: true });
-};
-
-// --- TERMINAL KEYSTROKE SOUND ---
-terminalInput.addEventListener('keydown', (e) => {
-    // Only play for visible keys
-    if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter' || e.key === 'Delete' || e.key === 'Tab') {
-        soundManager.play('keystroke');
-    }
-});
-
-// --- BUTTON CLICK SOUND ---
-function addButtonSound(selector) {
-    document.querySelectorAll(selector).forEach(btn => {
-        btn.addEventListener('click', () => soundManager.play('button'));
-    });
-}
-addButtonSound('.terminal-button');
-addButtonSound('.assistant-button');
-addButtonSound('.admin-button');
-addButtonSound('#restart-button');
-addButtonSound('#retry-button');
-addButtonSound('#start-button');
-addButtonSound('#close-admin');
-addButtonSound('.tab');
-addButtonSound('#terminal-submit');
-addButtonSound('#assistant-submit');
-
-// --- SUCCESS/ERROR SOUNDS ---
-function playSuccessSound() { soundManager.play('success'); }
-function playErrorSound() { soundManager.play('error'); }
-
-// --- HINT SOUND ---
-function playHintSound() { soundManager.play('hint'); } 
