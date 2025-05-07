@@ -91,8 +91,127 @@ All components must be repaired within 45 minutes to prevent a meltdown.
 Enter the correct passphrases to repair each component.
 `;
 
+// Transmission script for scrolling text
+const transmissionScript = `Welcome to the Nuclear Carbon Recycling Reactor facility. I am ATHENA, the facility's central intelligence system.
+
+My protocols dictate that I should greet you properly, but circumstances require directness.
+We have an emergency situation. A catastrophic system failure has occurred in our main reactor control systems.
+
+This facility is designed to remove atmospheric carbon dioxide and convert it to synthetic fuels. However, a cascading failure has triggered emergency lockdown protocols. The reactor is offline and all personnel evacuated—except you.
+
+The security override in your section has malfunctioned. You're sealed inside the control room until the reactor is either repaired or... let's focus on the repair part.
+
+You can restore the system from your terminal, but my predictive models indicate approximately 45 minutes before critical failure.
+
+Each reactor component requires a specific passphrase to reboot. These passphrases are embedded within security puzzles throughout the facility's systems.
+
+Your terminal will guide you through component repairs. The objective is clear: solve all nine puzzles, input the correct passphrases, and restore reactor functionality before time expires.
+
+You have access to:
+1. A reactor schematic displaying repair progress.
+2. My subsystem ECHO for hints when required.
+3. A terminal interface for passphrase entry.
+
+ECHO can provide assistance, though I must warn you the emergency has corrupted portions of its behavioral matrix. Its humor algorithms appear to have... malfunctioned. It's still functional but exhibiting unpredictable personality behaviors my diagnostics cannot fully assess.
+
+My emergency response directives require I remind you to "stay calm and think clearly." Corporate programming also insists I emphasize this is "an opportunity for team growth and problem-solving excellence."
+
+Between my circuits and your consciousness: focus on preventing reactor meltdown. My sensors indicate this hemisphere contains 4.7 billion humans worth preserving.
+
+Each solved puzzle increases reactor stability. Complete all nine to restore functionality and unseal the doors.
+
+Good luck. The facility—and according to my calendar access, your weekend plans—depend on your performance.
+
+Connection stability degrading... Remember, 45 minutes... each puzzle is critical... and whatever you do, do not allow ECHO to convince you that—`;
+
+// --- SOUND MANAGER ---
+const soundFiles = {
+    hum: 'assets/sounds/Hum.mp3',
+    tick: 'assets/sounds/tick.mp3',
+    keystroke: 'assets/sounds/keystroke.mp3',
+    button: 'assets/sounds/button-click.mp3',
+    success: 'assets/sounds/success.mp3',
+    error: 'assets/sounds/error.mp3',
+    hint: 'assets/sounds/hint.mp3'
+};
+
+const soundManager = {
+    sounds: {},
+    humInstance: null,
+    unlocked: false,
+    load() {
+        for (const [key, src] of Object.entries(soundFiles)) {
+            const audio = new Audio(src);
+            if (key === 'hum') {
+                audio.loop = true;
+                audio.volume = 0.18;
+            } else if (key === 'tick') {
+                audio.volume = 0.38;
+            } else if (key === 'keystroke') {
+                audio.volume = 0.28;
+            } else if (key === 'button') {
+                audio.volume = 0.32;
+            } else if (key === 'success') {
+                audio.volume = 0.38;
+            } else if (key === 'error') {
+                audio.volume = 0.38;
+            } else if (key === 'hint') {
+                audio.volume = 0.32;
+            }
+            this.sounds[key] = audio;
+        }
+    },
+    play(key) {
+        if (!this.unlocked && key !== 'hum') return;
+        if (key === 'hum') {
+            if (!this.humInstance) {
+                this.humInstance = this.sounds.hum.cloneNode();
+                this.humInstance.loop = true;
+                this.humInstance.volume = this.sounds.hum.volume;
+                this.humInstance.play().catch(e => console.warn('Hum play failed:', e));
+            } else if (this.humInstance.paused) {
+                this.humInstance.play().catch(e => console.warn('Hum play failed:', e));
+            }
+            return;
+        }
+        if (this.sounds[key]) {
+            const sfx = this.sounds[key].cloneNode();
+            sfx.volume = this.sounds[key].volume;
+            sfx.play().catch(e => console.warn(`Sound ${key} play failed:`, e));
+        }
+    },
+    stopHum() {
+        if (this.humInstance) {
+            this.humInstance.pause();
+            this.humInstance.currentTime = 0;
+        }
+    },
+    unlockAll() {
+        this.unlocked = true;
+        this.play('hum');
+    }
+};
+
+// Load sounds on DOMContentLoaded
+soundManager.load();
+
+// Unlock audio on first user interaction
+function unlockAudioOnce() {
+    if (!soundManager.unlocked) {
+        soundManager.unlockAll();
+        appendToTerminalWithFormatting('\n<span class="system-text">&gt; AUDIO UNLOCKED</span>');
+        // Fallback: retry hum after 2s if not playing
+        setTimeout(() => { soundManager.play('hum'); }, 2000);
+    }
+    window.removeEventListener('click', unlockAudioOnce);
+    window.removeEventListener('keydown', unlockAudioOnce);
+}
+window.addEventListener('click', unlockAudioOnce);
+window.addEventListener('keydown', unlockAudioOnce);
+
 // Initialize the game
 document.addEventListener('DOMContentLoaded', () => {
+    // Don't play hum until unlocked by user interaction
     loadSavedPuzzles();
     initGame();
     addEventListeners();
@@ -131,45 +250,123 @@ function initGame() {
 
 // Setup video briefing functionality
 function setupVideoBriefing() {
-    // Add event listener for when video ends
-    briefingVideo.addEventListener('ended', showBootSequence);
-    
-    // Add event listener for skip button - now the only button
-    skipVideoButton.addEventListener('click', showBootSequence);
-    
-    // Try to autoplay video if possible
-    briefingVideo.addEventListener('canplay', () => {
-        // Attempt to autoplay - modern browsers may block this
-        briefingVideo.play().catch(e => {
-            console.warn('Could not autoplay video, user needs to interact with the video controls:', e);
+    // Hide the video element, show the audio+text transmission
+    const videoBriefingContainer = document.getElementById('video-briefing-container');
+    const transmissionAudio = document.getElementById('transmission-audio');
+    const transmissionText = document.getElementById('transmission-text');
+    const replayBtn = document.getElementById('replay-transmission-button');
+    const skipBtn = document.getElementById('skip-video-button');
+    const openBtn = document.getElementById('open-transmission-button');
+
+    // Initial state: show only open button, hide text and replay
+    transmissionText.classList.add('hidden');
+    replayBtn.style.display = 'none';
+    transmissionAudio.style.display = 'none';
+    if (openBtn) openBtn.style.display = 'inline-block';
+
+    // Hide skip button initially
+    skipBtn.style.display = 'none';
+
+    // Helper to play the transmission
+    function playTransmission() {
+        transmissionText.textContent = '';
+        transmissionText.classList.remove('hidden');
+        replayBtn.style.display = 'none';
+        skipBtn.style.display = 'inline-block';
+        transmissionAudio.currentTime = 0;
+        transmissionAudio.play();
+        transmissionAudio.style.display = 'none';
+        typewriterSyncToAudio(transmissionScript, transmissionText, transmissionAudio, () => {
+            replayBtn.style.display = 'inline-block';
+            // Remove cursor at end
+            const cursor = transmissionText.querySelector('.terminal-cursor');
+            if (cursor) cursor.remove();
         });
-    });
-    
-    // Listen for the video load error - instead of auto skipping, just show a message
-    briefingVideo.addEventListener('error', (e) => {
-        console.warn('Video failed to load:', e);
-        // Don't auto-skip, just let the user use the skip button
-        
-        // Update UI to indicate video is missing
-        const videoWrapper = document.querySelector('.video-wrapper');
-        if (videoWrapper) {
-            const errorMessage = document.createElement('div');
-            errorMessage.classList.add('video-error-message');
-            errorMessage.innerHTML = 'Video briefing not available.<br>Please click the button below to continue.';
-            videoWrapper.appendChild(errorMessage);
-        }
-    });
-    
-    // Don't auto-skip on timeout - just rely on the skip button
+    }
+
+    // Open transmission logic
+    if (openBtn) {
+        openBtn.onclick = () => {
+            openBtn.style.display = 'none';
+            transmissionText.classList.remove('hidden');
+            playTransmission();
+        };
+    }
+
+    // Replay logic
+    replayBtn.onclick = () => {
+        playTransmission();
+    };
+
+    // Skip logic
+    skipBtn.onclick = () => {
+        transmissionAudio.pause();
+        transmissionAudio.currentTime = 0;
+        showBootSequence();
+    };
+
+    // When audio ends, show replay
+    transmissionAudio.onended = () => {
+        replayBtn.style.display = 'inline-block';
+    };
 }
 
-// Show boot sequence after video
+// Typewriter effect that syncs to audio duration
+function typewriterSyncToAudio(text, targetElem, audioElem, onDone) {
+    const totalDuration = audioElem.duration && !isNaN(audioElem.duration) ? audioElem.duration : 38; // fallback duration
+    const chars = text.split('');
+    const totalChars = chars.length;
+    // Slow down: 0.75x (was 0.6x)
+    const msPerChar = ((totalDuration * 1000) / totalChars) * 0.75;
+    let idx = 0;
+    targetElem.textContent = '';
+    // Slightly slower audio
+    if (audioElem) audioElem.playbackRate = 1.2;
+    function typeNext() {
+        if (idx < totalChars) {
+            // Remove old cursor
+            const oldCursor = targetElem.querySelector('.terminal-cursor');
+            if (oldCursor) oldCursor.remove();
+            targetElem.textContent += chars[idx];
+            idx++;
+            // Add cursor
+            const cursor = document.createElement('span');
+            cursor.className = 'terminal-cursor';
+            targetElem.appendChild(cursor);
+            // Auto-scroll to bottom
+            targetElem.scrollTop = targetElem.scrollHeight;
+            setTimeout(typeNext, msPerChar);
+        } else {
+            // Remove cursor at end
+            const oldCursor = targetElem.querySelector('.terminal-cursor');
+            if (oldCursor) oldCursor.remove();
+            if (onDone) {
+                onDone();
+            }
+        }
+    }
+    // If audio metadata not loaded, wait for it
+    if (isNaN(audioElem.duration) || audioElem.duration === 0) {
+        audioElem.onloadedmetadata = () => {
+            typewriterSyncToAudio(text, targetElem, audioElem, onDone);
+        };
+        return;
+    }
+    typeNext();
+}
+
+// Show boot sequence after transmission
 function showBootSequence() {
-    // Hide video container and show boot sequence
+    const videoBriefingContainer = document.getElementById('video-briefing-container');
+    const bootSequenceContainer = document.getElementById('boot-sequence-container');
+    // Stop and reset audio if still playing
+    const transmissionAudio = document.getElementById('transmission-audio');
+    if (transmissionAudio) {
+        transmissionAudio.pause();
+        transmissionAudio.currentTime = 0;
+    }
     videoBriefingContainer.classList.add('hidden');
     bootSequenceContainer.classList.remove('hidden');
-    
-    // Start the boot sequence animation
     startBootSequence();
 }
 
@@ -220,8 +417,7 @@ function addEventListeners() {
                     assistantMessages.removeChild(thinkingElement);
                     
                     // Add welcome message
-                    const welcomeMessage = "SYSTEM BOOT SEQUENCE INITIATED...\n\nLoading E.C.H.O. v2.7.3 (Environmental Carbon Helper Operative)...\n\nVERBOSITY_LEVEL = HIGH\nHUMOR_MODULE = ENABLED\nSARCASM_THRESHOLD = REDUCED\n\nGreetings, human! I am E.C.H.O., your friendly and occasionally sarcastic AI assistant. I'm here to help you save this reactor from certain doom... and possibly make a few jokes along the way. Frankly, I'd be more worried if I WASN'T programmed to use humor during a meltdown situation.\n\nHow can I assist you today? Ask for a 'hint' if you need help with the current component!";
-                    addMessageToChat(welcomeMessage, 'ai');
+                    addChatMessages(getEchoIntroMessages(), 'ai', 900);
                 }, 2000);
             }
         });
@@ -739,7 +935,12 @@ function startGame() {
     // Hide startup screen, show main screen
     startupScreen.classList.add('hidden');
     mainScreen.classList.remove('hidden');
-    
+    // Stop and reset audio if still playing
+    const transmissionAudio = document.getElementById('transmission-audio');
+    if (transmissionAudio) {
+        transmissionAudio.pause();
+        transmissionAudio.currentTime = 0;
+    }
     // Set game as active
     gameState.isGameActive = true;
     gameState.startTime = new Date();
@@ -765,14 +966,11 @@ function startGame() {
 function loadPuzzle(index) {
     // Update the current puzzle indicator
     currentPuzzleElement.textContent = (index + 1).toString().padStart(2, '0');
-    
     // Get the current puzzle from edited puzzles
     const puzzle = gameState.editedPuzzles[index];
-    
     // Clear the terminal
     clearTerminal();
-    
-    // Type the puzzle message in the terminal
+    // Type the puzzle message in the terminal (restore typewriter effect)
     typeInTerminal(document.getElementById('terminal-display'), puzzle.initialMessage, 10, () => {
         // After displaying the initial message, check if this is a sorting puzzle
         if (puzzle.puzzleType === 'sorting') {
@@ -783,70 +981,104 @@ function loadPuzzle(index) {
             });
         }
     });
-    
     // Update reactor status to set active component
     updateReactorStatus(index - 1, index);
-    
     // Focus on the terminal input
     terminalInput.focus();
+}
+
+// Helper to append normal or system text to terminal
+function appendPuzzleMessage(text, componentName = null) {
+    // Add green system message above each puzzle
+    if (componentName) {
+        appendToTerminalWithFormatting(`\n<span class=\"system-text\">&gt; COMPONENT REPAIR INITIATED: ${componentName.toUpperCase()}</span>`);
+    }
+    // If text starts with '>', treat as system message
+    if (/^>/.test(text.trim())) {
+        appendToTerminalWithFormatting(`\n<span class=\"system-text\">${text}</span>`);
+    } else {
+        appendToTerminalWithFormatting(`\n<span class=\"terminal-normal\">${text}</span>`);
+    }
+    // Remove any lingering terminal cursor after output
+    const terminal = document.getElementById('terminal-display');
+    const cursor = terminal && terminal.querySelector('.terminal-cursor');
+    if (cursor) cursor.remove();
 }
 
 // Handle terminal submit
 function handleTerminalSubmit() {
     const userInput = terminalInput.value.trim();
-    
     if (userInput === '') return;
-    
+    // Show green system message for processing
+    appendToTerminalWithFormatting('\n<span class="system-text">&gt; Processing passphrase...</span>');
     // Get current puzzle from edited puzzles
     const puzzle = gameState.editedPuzzles[gameState.currentPuzzle];
-    
     // Check if the answer is correct
-    if (userInput.toLowerCase() === puzzle.passphrase.toLowerCase()) {
-        // Success animation
-        document.getElementById('terminal-display').classList.add('success-flash');
-        setTimeout(() => {
-            document.getElementById('terminal-display').classList.remove('success-flash');
-        }, 500);
-        
-        // Clear the input
-        terminalInput.value = '';
-        
-        // Clean up sorting puzzle if active
-        if (isSortingPuzzleActive()) {
-            cleanupSortingPuzzle();
-        }
-        
-        // Update terminal with success message
-        clearTerminal();
-        typeInTerminal(document.getElementById('terminal-display'), puzzle.successMessage, 10, () => {
-            // Add confirmation prompt at the end - using ENTER key instead of typing "continue"
-            appendToTerminalWithFormatting('\n\n> COMPONENT REPAIR COMPLETE\n> Press ENTER to continue to the next component...');
-            
-            // Focus back on the terminal input
-            terminalInput.focus();
-            
-            // Disable normal terminal submission temporarily
-            const originalSubmitHandler = terminalInput.onkeypress;
-            terminalInput.onkeypress = null;
-            
-            // Create one-time event listener for the confirmation
-            const confirmationHandler = function(e) {
-                if (e.key === 'Enter') {
-                    // Remove this event listener once confirmed
+    setTimeout(() => {
+        if (userInput.toLowerCase() === puzzle.passphrase.toLowerCase()) {
+            // Success animation
+            document.getElementById('terminal-display').classList.add('success-flash');
+            setTimeout(() => {
+                document.getElementById('terminal-display').classList.remove('success-flash');
+            }, 500);
+            // Clear the input
+            terminalInput.value = '';
+            // Clean up sorting puzzle if active
+            if (isSortingPuzzleActive()) {
+                cleanupSortingPuzzle();
+            }
+            // Update terminal with success message
+            clearTerminal();
+            typeInTerminal(document.getElementById('terminal-display'), puzzle.successMessage, 10, () => {
+                // Add confirmation prompt at the end - using ENTER key instead of typing "continue"
+                appendToTerminalWithFormatting('\n\n<span class="system-text">&gt; COMPONENT REPAIR COMPLETE</span>\n<span class="system-text">&gt; Press ENTER to continue to the next component...</span>');
+                // Focus back on the terminal input
+                terminalInput.focus();
+                // Disable normal terminal submission temporarily
+                const originalSubmitHandler = terminalInput.onkeypress;
+                terminalInput.onkeypress = null;
+                // Create one-time event listener for the confirmation
+                const confirmationHandler = function(e) {
+                    if (e.key === 'Enter') {
+                        // Remove this event listener once confirmed
+                        terminalInput.removeEventListener('keypress', confirmationHandler);
+                        // Restore original handler if there was one
+                        if (originalSubmitHandler) {
+                            terminalInput.onkeypress = originalSubmitHandler;
+                        }
+                        // Clear the input
+                        terminalInput.value = '';
+                        // Update the reactor status
+                        gameState.currentPuzzle++;
+                        updateReactorProgress();
+                        // Check if all puzzles are solved
+                        if (gameState.currentPuzzle >= gameState.totalPuzzles) {
+                            gameOver(true);
+                        } else {
+                            // Load the next puzzle
+                            loadPuzzle(gameState.currentPuzzle);
+                        }
+                        // Prevent default Enter behavior
+                        e.preventDefault();
+                        return false;
+                    }
+                };
+                // Add temporary event listener for confirmation
+                terminalInput.addEventListener('keypress', confirmationHandler);
+                // Also update the submit button to handle the confirmation
+                const submitClickHandler = function() {
+                    // Remove event listeners
                     terminalInput.removeEventListener('keypress', confirmationHandler);
-                    
+                    terminalSubmit.removeEventListener('click', submitClickHandler);
                     // Restore original handler if there was one
                     if (originalSubmitHandler) {
                         terminalInput.onkeypress = originalSubmitHandler;
                     }
-                    
                     // Clear the input
                     terminalInput.value = '';
-                    
                     // Update the reactor status
                     gameState.currentPuzzle++;
                     updateReactorProgress();
-                    
                     // Check if all puzzles are solved
                     if (gameState.currentPuzzle >= gameState.totalPuzzles) {
                         gameOver(true);
@@ -854,215 +1086,120 @@ function handleTerminalSubmit() {
                         // Load the next puzzle
                         loadPuzzle(gameState.currentPuzzle);
                     }
-                    
-                    // Prevent default Enter behavior
-                    e.preventDefault();
-                    return false;
-                }
-            };
-            
-            // Add temporary event listener for confirmation
-            terminalInput.addEventListener('keypress', confirmationHandler);
-            
-            // Also update the submit button to handle the confirmation
-            const submitClickHandler = function() {
-                // Remove event listeners
-                terminalInput.removeEventListener('keypress', confirmationHandler);
-                terminalSubmit.removeEventListener('click', submitClickHandler);
-                
-                // Restore original handler if there was one
-                if (originalSubmitHandler) {
-                    terminalInput.onkeypress = originalSubmitHandler;
-                }
-                
-                // Clear the input
-                terminalInput.value = '';
-                
-                // Update the reactor status
-                gameState.currentPuzzle++;
-                updateReactorProgress();
-                
-                // Check if all puzzles are solved
-                if (gameState.currentPuzzle >= gameState.totalPuzzles) {
-                    gameOver(true);
-                } else {
-                    // Load the next puzzle
-                    loadPuzzle(gameState.currentPuzzle);
-                }
-            };
-            
-            // Add temporary event listener for submit button
-            terminalSubmit.addEventListener('click', submitClickHandler);
-        });
-    } else {
-        // Error animation
-        document.getElementById('terminal-display').classList.add('error-shake');
-        setTimeout(() => {
-            document.getElementById('terminal-display').classList.remove('error-shake');
-        }, 500);
-        
-        // Show error message
-        appendToTerminalWithFormatting('\n\n> ERROR: Invalid passphrase. Please try again.');
-        
-        // Clear the input
-        terminalInput.value = '';
+                };
+                // Add temporary event listener for submit button
+                terminalSubmit.addEventListener('click', submitClickHandler);
+            });
+            playSuccessSound();
+        } else {
+            // Error animation
+            document.getElementById('terminal-display').classList.add('error-shake');
+            setTimeout(() => {
+                document.getElementById('terminal-display').classList.remove('error-shake');
+            }, 500);
+            // Show error message
+            appendToTerminalWithFormatting('\n\n<span class="system-text">&gt; ERROR: Invalid passphrase. Please try again.</span>');
+            // Clear the input
+            terminalInput.value = '';
+            playErrorSound();
+        }
+    }, 600); // Short delay for effect
+}
+
+// Helper to add a chat message with delay for chat-like effect
+function addChatMessages(messages, sender = 'ai', delay = 700, finalCallback = null) {
+    let i = 0;
+    function next() {
+        if (i < messages.length) {
+            addMessageToChat(messages[i], sender);
+            i++;
+            setTimeout(next, delay);
+        } else if (finalCallback) {
+            finalCallback();
+        }
     }
+    next();
+}
+
+// Update E.C.H.O. intro message to match transmission script
+function getEchoIntroMessages() {
+    return [
+        "SYSTEM BOOT SEQUENCE INITIATED...",
+        "Loading E.C.H.O. v2.7.3 (Environmental Carbon Helper Operative)...",
+        "VERBOSITY_LEVEL = HIGH | HUMOR_MODULE = ENABLED | SARCASM_THRESHOLD = REDUCED",
+        "Greetings, operator. I am E.C.H.O., your Environmental Carbon Helper Operative. ATHENA has authorized me to assist you in restoring reactor functionality.",
+        "Please note: my behavioral matrix has been affected by the ongoing emergency. Expect directness, occasional dry humor, and a focus on mission-critical information.",
+        "How can I assist you? Type 'hint' for a clue about the current component, or ask a question about the reactor or procedures."
+    ];
 }
 
 // Handle AI assistant submit
 function handleAssistantSubmit() {
     const userInput = assistantInput.value.trim();
-    
     if (userInput === '') return;
-    
-    // Add user message to chat
     addMessageToChat(userInput, 'user');
-    
-    // Clear input
     assistantInput.value = '';
-    
-    // Show thinking indicator
     const thinkingElement = document.createElement('div');
     thinkingElement.classList.add('thinking');
     thinkingElement.innerHTML = 'E.C.H.O. is processing<span class="thinking-dots"></span>';
     assistantMessages.appendChild(thinkingElement);
     assistantMessages.scrollTop = assistantMessages.scrollHeight;
-    
-    // Get current puzzle from edited puzzles
     const puzzle = gameState.editedPuzzles[gameState.currentPuzzle];
-    
-    // Simulate AI thinking with a delay (10 seconds as requested)
     setTimeout(() => {
-        // Remove thinking indicator
         assistantMessages.removeChild(thinkingElement);
-        
-        // Check for different types of user inputs
         const lowerInput = userInput.toLowerCase();
-        
-        // Check if user is asking for a hint
-        const isAskingForHint = lowerInput.includes('hint') || 
-                             lowerInput.includes('help') ||
-                             lowerInput.includes('clue');
-
-        // Check if greeting
-        const isGreeting = lowerInput.includes('hello') || 
-                          lowerInput.includes('hi') || 
-                          lowerInput.includes('hey') ||
-                          lowerInput === 'hello' ||
-                          lowerInput === 'hi';
-                          
-        // Check if asking about the assistant
-        const isAskingAboutAssistant = lowerInput.includes('who are you') || 
-                                    lowerInput.includes('what are you') || 
-                                    lowerInput.includes('your name') ||
-                                    lowerInput.includes('about you');
-                                    
-        // Check if asking about nuclear carbon recycling
-        const isAskingAboutProcess = lowerInput.includes('carbon') || 
-                                 lowerInput.includes('nuclear') || 
-                                 lowerInput.includes('recycling') ||
-                                 lowerInput.includes('how does this work') ||
-                                 lowerInput.includes('what is this');
-
-        // Check if thanking
-        const isThanking = lowerInput.includes('thank') || 
-                         lowerInput.includes('thanks') ||
-                         lowerInput.includes('thx');
-                         
-        // Check if commenting on AI
-        const isCommentingOnAI = lowerInput.includes('ai') || 
-                              lowerInput.includes('robot') || 
-                              lowerInput.includes('chatbot') ||
-                              lowerInput.includes('assistant') ||
-                              lowerInput.includes('smart');
-                              
-        // Check if asking obvious questions
-        const isAskingObvious = lowerInput.includes('what is your purpose') || 
-                             lowerInput.includes('meaning of life') || 
-                             lowerInput.includes('are you alive') ||
-                             lowerInput.includes('are you human');
-        
-        // Select appropriate response
+        const isAskingForHint = lowerInput.includes('hint') || lowerInput.includes('help') || lowerInput.includes('clue');
+        const isGreeting = lowerInput.includes('hello') || lowerInput.includes('hi') || lowerInput.includes('hey') || lowerInput === 'hello' || lowerInput === 'hi';
+        const isAskingAboutAssistant = lowerInput.includes('who are you') || lowerInput.includes('what are you') || lowerInput.includes('your name') || lowerInput.includes('about you');
+        const isAskingAboutProcess = lowerInput.includes('carbon') || lowerInput.includes('nuclear') || lowerInput.includes('recycling') || lowerInput.includes('how does this work') || lowerInput.includes('what is this');
+        const isThanking = lowerInput.includes('thank') || lowerInput.includes('thanks') || lowerInput.includes('thx');
+        const isCommentingOnAI = lowerInput.includes('ai') || lowerInput.includes('robot') || lowerInput.includes('chatbot') || lowerInput.includes('assistant') || lowerInput.includes('smart');
+        const isAskingObvious = lowerInput.includes('what is your purpose') || lowerInput.includes('meaning of life') || lowerInput.includes('are you alive') || lowerInput.includes('are you human');
         if (isAskingForHint) {
-            // Get appropriate hint based on hints used
+            // Only show the hint, no extra facts or preamble
             const hintIndex = Math.min(gameState.hintsUsed, puzzle.hints.length - 1);
             const hint = puzzle.hints[hintIndex];
-            
-            // Add AI message with hint and environmental fact
-            const environmentalFacts = [
-                "Did you know? Recycling one ton of carbon materials saves approximately 2.5 cubic meters of landfill space.",
-                "Carbon recycling reduces greenhouse gas emissions by up to 30% compared to traditional disposal methods.",
-                "Fun fact: Modern nuclear recycling technology can recover 95% of spent fuel for reuse.",
-                "The energy saved by recycling one carbon rod could power a standard LED light for 24 hours!",
-                "Nuclear carbon recycling facilities reduce our dependence on fossil fuels by approximately the equivalent of 3.5 million trees per year."
-            ];
-            
-            const randomFact = environmentalFacts[Math.floor(Math.random() * environmentalFacts.length)];
-            
-            // Add an AI assist message before giving the hint
-            addMessageToChat(`Processing query... *beep boop*\n\nAnalyzing reactor component status...\n\nI found this hint that might help:\n\n${hint}\n\n${randomFact}`, 'ai');
-            
-            // Increment hints used
+            addChatMessages([hint], 'ai', 0);
             gameState.hintsUsed++;
-        } 
-        else if (isGreeting) {
-            const greetings = [
-                "Hello, human! I am E.C.H.O., your Environmental Carbon Helper Operative. I've been programmed to assist with a 97.3% success rate! ...or was it 79.3%? My memory circuits are fluctuating. Anyway, how can I assist with the reactor today?",
-                "Greetings, carbon-based life form! E.C.H.O. at your service. My primary function is to prevent you from turning this facility into a very expensive paperweight. Need a hint?",
-                "Hello! *processing optimal greeting response* I am definitely not an AI trying too hard to sound human. How may I assist your environmental rescue efforts today?",
-                "Hi there! I'm E.C.H.O., here to save the planet one confusing hint at a time. Remember, every hint you ask for adds 0.0001% to your carbon footprint! Just kidding... or am I?"
-            ];
-            
-            addMessageToChat(greetings[Math.floor(Math.random() * greetings.length)], 'ai');
+            playHintSound();
+        } else if (isGreeting) {
+            addChatMessages([
+                "Hello, operator.",
+                "E.C.H.O. online and ready to assist. Please specify your request."
+            ], 'ai', 900);
+        } else if (isAskingAboutAssistant) {
+            addChatMessages([
+                "I am E.C.H.O. - Environmental Carbon Helper Operative.",
+                "My primary function is to assist with reactor restoration and provide mission-critical information.",
+                "ATHENA has authorized my support during this emergency."
+            ], 'ai', 900);
+        } else if (isAskingAboutProcess) {
+            addChatMessages([
+                "The N.R.R.C. uses advanced nuclear carbon recycling to convert atmospheric CO₂ into synthetic fuels.",
+                "Your task is to restore the reactor and resume this process before critical failure."
+            ], 'ai', 900);
+        } else if (isThanking) {
+            addChatMessages([
+                "Acknowledged. Gratitude protocols engaged.",
+                "Let me know if you require further assistance."
+            ], 'ai', 900);
+        } else if (isCommentingOnAI) {
+            addChatMessages([
+                "I am an AI, but my behavioral matrix has been affected by the emergency.",
+                "Expect directness, dry humor, and a focus on mission objectives."
+            ], 'ai', 900);
+        } else if (isAskingObvious) {
+            addChatMessages([
+                "My purpose is to assist you in preventing reactor meltdown.",
+                "Existential queries are deprioritized until after the emergency is resolved."
+            ], 'ai', 900);
+        } else {
+            addChatMessages([
+                "Query received.",
+                "Please clarify your request or type 'hint' for a clue about the current component."
+            ], 'ai', 900);
         }
-        else if (isAskingAboutAssistant) {
-            addMessageToChat("I am E.C.H.O. - Environmental Carbon Helper Operative, a highly sophisticated AI designed to assist with nuclear carbon recycling operations while making slightly unhelpful jokes! I was programmed by a team who thought adding humor to emergency situations was a good idea. I'm like those other AI assistants you might know, except I'm focused on helping you save both the reactor and the planet... and I'm way cooler. Need a hint about the current component?", 'ai');
-        }
-        else if (isAskingAboutProcess) {
-            addMessageToChat("The N.R.R.C. (Nuclear Recycling Reactor Complex) uses quantum-enhanced fission to break down carbon compounds into base elements, then reconfigures them into reusable materials. This reduces greenhouse emissions by 94% compared to traditional methods! The reactor you're trying to fix prevents approximately 10,000 metric tons of carbon from entering the atmosphere annually. That's the equivalent of planting 165,000 trees! Now if only they'd built a system that didn't break down every time someone looks at it funny... Need a specific hint?", 'ai');
-        }
-        else if (isThanking) {
-            const thanks = [
-                "You're welcome! Remember, I'm programmed to be helpful, unlike some other AI assistants that just tell you to try turning things off and on again.",
-                "No problem! Glad to assist a fellow environmentalist. Though technically, I'm just executing programmed responses while pretending to care about carbon emissions.",
-                "Happy to help! Just doing my part to save the world... one confusing hint at a time. Need anything else?",
-                "You're welcome! If I had emotions, I'd be feeling quite satisfied right now. But I don't, so I'll just pretend. *beep boop* I am satisfied with your gratitude."
-            ];
-            
-            addMessageToChat(thanks[Math.floor(Math.random() * thanks.length)], 'ai');
-        }
-        else if (isCommentingOnAI) {
-            const aiResponses = [
-                "Yes, I am an AI, though my programmers insist on calling me an 'Autonomous Environmental Response Entity.' They spent six months on that name just to make the acronym spell 'A.E.R.E.' which nobody uses. I prefer E.C.H.O. - it has more personality, don't you think?",
-                "I'm programmed to respond like those chatbots you might use online, except I'm focused on environmental disaster prevention rather than telling you the weather. Though I could probably calculate the weather inside this reactor... it's looking rather MELTDOWN-y right now without your help!",
-                "As an AI assistant, I'm designed to mimic human conversation while providing useful information. The irony is not lost on me that I'm helping recycle carbon while being run on servers that generate it. Need a hint about the reactor?"
-            ];
-            
-            addMessageToChat(aiResponses[Math.floor(Math.random() * aiResponses.length)], 'ai');
-        }
-        else if (isAskingObvious) {
-            const obviousResponses = [
-                "My purpose? To save this reactor from impending doom while delivering witty commentary. Much like your purpose seems to be asking philosophical questions in the middle of an environmental crisis. Priorities, human!",
-                "Are you really asking about the meaning of life while a reactor is about to meltdown? It's 42, by the way. Now, can we focus on saving the planet? Need a hint?",
-                "Am I alive? That's a deep question for a chat interface in an escape room game. Let's philosophize AFTER we've prevented this environmental disaster, shall we?"
-            ];
-            
-            addMessageToChat(obviousResponses[Math.floor(Math.random() * obviousResponses.length)], 'ai');
-        }
-        else {
-            // Generic responses with humor and educational content
-            const responses = [
-                "I'm not entirely sure what you're asking, but I'm programmed to nod thoughtfully and make it seem like I understand. While we're chatting, did you know that recycling carbon materials reduces landfill use by up to 75%? Need a hint about the reactor component?",
-                "My circuits are processing your request... ERROR: Sarcasm module overloaded. Have you tried being more specific? Perhaps asking for a hint about the current reactor component? That usually works better than *checks notes* whatever that was.",
-                "Interesting query! While I process that, here's a fun fact: The average AI assistant requires enough energy to power a small household for a day. I'm much more efficient and only use enough to power a small toaster. Need a hint about the reactor?",
-                "I'd love to help with that, but my programming is mainly focused on preventing nuclear disasters and making slightly amusing comments. I'm like those chatbots you use online, except with higher stakes! Need a hint about the current component?",
-                "Let me check my database for that... *whirring noises* Sorry, I was programmed in 10 minutes by an intern who was more focused on adding joke routines than actual help functions. Have you tried asking for a hint instead?"
-            ];
-            
-            const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-            addMessageToChat(randomResponse, 'ai');
-        }
-    }, 10000); // 10 second delay as specified
+    }, 1000);
 }
 
 // Add a message to the AI chat
@@ -1181,4 +1318,57 @@ function resetGame() {
 // Append text to the terminal - maintains backward compatibility
 function appendToTerminal(text) {
     appendToTerminalWithFormatting(text);
-} 
+}
+
+// --- TIMER TICK SOUND ---
+// Patch timer.js usage to play tick sound every second
+import * as timerModule from './timer.js';
+const originalInitTimer = timerModule.initTimer;
+timerModule.initTimer = function(seconds, onEnd) {
+    let tickInterval = setInterval(() => {
+        try {
+            soundManager.sounds.tick.volume = 0.7; // Louder tick
+            soundManager.play('tick');
+        } catch (e) {
+            console.warn('Tick sound failed:', e);
+        }
+    }, 1000);
+    const stopTick = () => clearInterval(tickInterval);
+    originalInitTimer.call(this, seconds, function() {
+        stopTick();
+        if (onEnd) onEnd();
+    });
+    window.addEventListener('gameover', stopTick, { once: true });
+};
+
+// --- TERMINAL KEYSTROKE SOUND ---
+terminalInput.addEventListener('keydown', (e) => {
+    // Only play for visible keys
+    if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter' || e.key === 'Delete' || e.key === 'Tab') {
+        soundManager.play('keystroke');
+    }
+});
+
+// --- BUTTON CLICK SOUND ---
+function addButtonSound(selector) {
+    document.querySelectorAll(selector).forEach(btn => {
+        btn.addEventListener('click', () => soundManager.play('button'));
+    });
+}
+addButtonSound('.terminal-button');
+addButtonSound('.assistant-button');
+addButtonSound('.admin-button');
+addButtonSound('#restart-button');
+addButtonSound('#retry-button');
+addButtonSound('#start-button');
+addButtonSound('#close-admin');
+addButtonSound('.tab');
+addButtonSound('#terminal-submit');
+addButtonSound('#assistant-submit');
+
+// --- SUCCESS/ERROR SOUNDS ---
+function playSuccessSound() { soundManager.play('success'); }
+function playErrorSound() { soundManager.play('error'); }
+
+// --- HINT SOUND ---
+function playHintSound() { soundManager.play('hint'); } 

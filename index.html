@@ -8,6 +8,7 @@
     <title>N.R.R.C Terminal</title>
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         /* Emergency fix for corner issues */
         html, body, #game-container, .header-bar, .title {
@@ -337,17 +338,17 @@
             <div class="startup-content">
                 <div class="terminal-header">N.R.R.C TERMINAL BOOT SEQUENCE</div>
                 
-                <!-- Video Briefing Section -->
+                <!-- Audio Transmission Section -->
                 <div id="video-briefing-container" class="video-briefing-container">
                     <div class="video-header">INCOMING TRANSMISSION</div>
-                    <div class="video-wrapper">
-                        <video id="briefing-video" controls preload="auto" poster="assets/video-poster.jpg" playsinline>
-                            <source src="assets/briefing-video.mp4" type="video/mp4">
-                            Your browser does not support the video tag.
-                        </video>
+                    <div class="audio-transmission-wrapper">
+                        <button id="open-transmission-button" class="terminal-button">OPEN TRANSMISSION</button>
+                        <audio id="transmission-audio" src="Lily Text to Speech May 7 2025.mp3" style="display:none;"></audio>
+                        <div id="transmission-text" class="transmission-text terminal-text hidden"></div>
                     </div>
                     <div class="video-controls">
-                        <button id="skip-video-button" class="terminal-button">I GET IT, SAVE THE PLANET</button>
+                        <button id="replay-transmission-button" class="terminal-button" style="display:none;">REPLAY TRANSMISSION</button>
+                        <button id="skip-video-button" class="terminal-button" style="display:none;">I GET IT, SAVE THE PLANET</button>
                     </div>
                 </div>
                 
@@ -373,7 +374,7 @@
                     <!-- Tab navigation now horizontal at top -->
                     <div class="tab-bar horizontal">
                         <div class="tab active" data-tab="reactor">Reactor</div>
-                        <div class="tab" data-tab="support">Support</div>
+                        <div class="tab" data-tab="support">E.C.H.O</div>
                     </div>
                     
                     <div class="tab-content-container">

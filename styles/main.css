@@ -293,6 +293,7 @@ input, textarea {
             transparent 50%
         );
     background-size: 100% 4px;
+    font-weight: 600;
 }
 
 .terminal-display::after {
@@ -342,6 +343,9 @@ input, textarea {
 /* Add styles for system text that should remain green */
 .terminal-display .system-text {
     color: #00ff66;
+    font-weight: bold;
+    text-shadow: 0 0 6px #00ff66cc;
+    letter-spacing: 0.5px;
 }
 
 /* Adjust countdown timer placement and appearance */
@@ -651,7 +655,8 @@ input, textarea {
 .video-controls {
     display: flex;
     justify-content: center;
-    margin: 15px 0;
+    margin: 15px 0 0 0;
+    gap: 16px;
 }
 
 #skip-video-button {
@@ -1131,12 +1136,14 @@ body, #game-container, .screen, .terminal-display, .reactor-schematic {
 /* Terminal cursor */
 .terminal-cursor {
     display: inline-block;
-    width: 10px;
-    height: 18px;
-    background-color: rgba(230, 230, 230, 0.8);
+    width: 12px;
+    height: 1.2em;
+    background: #00ff66;
     margin-left: 2px;
-    animation: blink-cursor 1s step-end infinite;
-    vertical-align: middle;
+    border-radius: 2px;
+    box-shadow: 0 0 8px #00ff66cc;
+    animation: blink-cursor 1s steps(1) infinite;
+    vertical-align: bottom;
 }
 
 @keyframes blink-cursor {
@@ -1390,4 +1397,106 @@ body, #game-container, .screen, .terminal-display, .reactor-schematic {
 @keyframes blink {
     0%, 49% { opacity: 1; }
     50%, 100% { opacity: 0.5; }
+}
+
+.audio-transmission-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #000a;
+    border: 1px solid #00ff66;
+    border-radius: 8px;
+    padding: 24px 18px 18px 18px;
+    margin-bottom: 18px;
+    min-height: 220px;
+    box-shadow: 0 0 24px 0 #00ff6633;
+    max-width: 700px;
+    width: 100%;
+}
+
+#open-transmission-button {
+    margin-bottom: 18px;
+    min-width: 220px;
+}
+
+.transmission-text {
+    color: #39ff14;
+    font-family: 'JetBrains Mono', 'Fira Mono', 'Menlo', 'Consolas', 'Courier New', monospace;
+    font-size: 16px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    text-shadow: 0 0 8px #39ff1440, 0 0 2px #000;
+    min-height: 180px;
+    max-height: 340px;
+    width: 100%;
+    max-width: 650px;
+    margin: 0 auto;
+    background: rgba(0,0,0,0.7);
+    border-radius: 6px;
+    padding: 18px 20px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    position: relative;
+    animation: transmission-flicker 2.5s infinite linear alternate;
+    transition: max-height 0.2s;
+    text-align: left;
+    scrollbar-width: thin;
+    scrollbar-color: #39ff14 #001100;
+}
+
+.transmission-text::-webkit-scrollbar {
+    width: 10px;
+    background: #001100;
+}
+
+.transmission-text::-webkit-scrollbar-thumb {
+    background: #39ff14;
+    border-radius: 6px;
+    box-shadow: 0 0 8px #39ff14cc;
+}
+
+.transmission-text::-webkit-scrollbar-thumb:hover {
+    background: #eaff7b;
+}
+
+.transmission-text.hidden {
+    display: none;
+}
+
+#replay-transmission-button {
+    margin-right: 16px;
+}
+
+.terminal-display .terminal-normal {
+    color: #e0e0e0;
+    font-weight: 600;
+}
+
+body, html, #game-container, .terminal-display, .terminal-header, .terminal-input-area, .terminal-button, .assistant-header, .assistant-messages, .assistant-input-area, .ai-message, .user-message, .success-content, .failure-content, .startup-content, .transmission-text, .sorting-puzzle-container, .sorting-item, .sorting-category, .category-header, .category-reveal, .reveal-characters, .category-dropzone {
+    font-family: 'Space Mono', 'JetBrains Mono', 'Fira Mono', 'Menlo', 'Consolas', 'Courier New', monospace !important;
+}
+
+.assistant-messages::-webkit-scrollbar {
+    width: 10px;
+    background: #001100;
+}
+.assistant-messages::-webkit-scrollbar-thumb {
+    background: #39ff14;
+    border-radius: 6px;
+    box-shadow: 0 0 8px #39ff14cc;
+}
+.assistant-messages::-webkit-scrollbar-thumb:hover {
+    background: #eaff7b;
+}
+.assistant-messages::-webkit-scrollbar-track {
+    background: #001100;
+    border-radius: 6px;
+}
+.assistant-messages {
+    scrollbar-width: thin;
+    scrollbar-color: #39ff14 #001100;
+}
+.corner-fix, .header-corner {
+    display: none !important;
 } 
