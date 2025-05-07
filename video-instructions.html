@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N.R.R.C Briefing Video Instructions</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2, h3 {
+            color: #006633;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .note {
+            background-color: #ffffcc;
+            padding: 15px;
+            border-left: 5px solid #ffcc00;
+            margin: 20px 0;
+        }
+        .steps {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        code {
+            background-color: #f5f5f5;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>N.R.R.C Briefing Video Creation Guide</h1>
+    
+    <div class="note">
+        <strong>Note:</strong> This document provides instructions for recording and preparing the briefing video that plays at the start of the N.R.R.C escape room companion application.
+    </div>
+    
+    <h2>Video Requirements</h2>
+    <ul>
+        <li><strong>Duration:</strong> 1-2 minutes</li>
+        <li><strong>Resolution:</strong> 1280x720 (720p) or higher</li>
+        <li><strong>Format:</strong> MP4 (H.264)</li>
+        <li><strong>File size:</strong> Keep under 10MB if possible for fast loading</li>
+        <li><strong>Audio:</strong> Clear spoken dialogue with minimal background noise</li>
+    </ul>
+    
+    <h2>Script</h2>
+    <p>The full script is available in the <code>script.md</code> file in the repository. The script is structured as a briefing from Dr. Eliza Chen, the Director of Operations at the N.R.R.C facility.</p>
+    
+    <h2>Recording Options</h2>
+    
+    <div class="steps">
+        <h3>Option 1: Recorded Actor Performance</h3>
+        <ol>
+            <li>Find someone to play Dr. Eliza Chen</li>
+            <li>Set up a simple "command center" backdrop (dark background, minimal technical props)</li>
+            <li>Record the performance using the script</li>
+            <li>Add simple visual effects for "transmission breaking up" at the end</li>
+        </ol>
+        
+        <h3>Option 2: AI-Generated or Animated</h3>
+        <ol>
+            <li>Use an AI video generator tool with the script</li>
+            <li>Consider tools like Synthesia, D-ID, or HeyGen for AI presenter</li>
+            <li>Or create a motion graphics animation with voiceover</li>
+        </ol>
+        
+        <h3>Option 3: Simple Slideshow with Voiceover</h3>
+        <ol>
+            <li>Create slides that match the script sections</li>
+            <li>Record a voiceover following the script</li>
+            <li>Combine into a video presentation</li>
+        </ol>
+    </div>
+    
+    <h2>Post-Production</h2>
+    <ul>
+        <li>Add "N.R.R.C" branding and warning graphics</li>
+        <li>Include subtle tech interfaces/HUD elements that appear during relevant sections</li>
+        <li>Add alarm sounds at the beginning</li>
+        <li>Apply a slight "digital distortion" filter for the tech feel</li>
+        <li>End with transmission cutting out effect</li>
+    </ul>
+    
+    <h2>File Placement</h2>
+    <p>Once your video is complete:</p>
+    <ol>
+        <li>Name the file <code>briefing-video.mp4</code></li>
+        <li>Place it in the <code>assets/</code> directory</li>
+        <li>Create a poster image (first frame or custom image) named <code>video-poster.jpg</code> in the same directory</li>
+    </ol>
+    
+    <h2>Testing</h2>
+    <p>Before finalizing:</p>
+    <ul>
+        <li>Test the video in the application to ensure it loads properly</li>
+        <li>Verify that both the "video ended" and "skip video" functions work correctly</li>
+        <li>Check that the transition to the boot sequence is smooth</li>
+    </ul>
+    
+    <div class="note">
+        <strong>Important:</strong> Keep in mind that players will be viewing this at the start of their escape room experience, so it should set the tone and provide essential context without being too long or complex.
+    </div>
+</body>
+</html> 

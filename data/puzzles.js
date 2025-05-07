@@ -32,7 +32,7 @@ Proceeding to next component...
         ]
     },
 
-    // 2. Molecular Disassembly (02 of 09)
+    // 2. Molecular Disassembly (02 of 09) - Sorting Puzzle
     {
         componentName: "Molecular Disassembly",
         initialMessage: `
@@ -43,9 +43,12 @@ Proceeding to next component...
 The Molecular Disassembly unit has malfunctioned. This critical component separates carbon dioxide 
 molecules into their constituent parts for further processing.
 
-To repair this component, locate and enter the correct passphrase.
+Diagnostic shows data sorting error. Molecular elements must be properly categorized to restore system function.
+Use the terminal interface to sort the elements into their proper categories.
+
+INSTRUCTION: Drag and drop each element into its correct category.
 `,
-        passphrase: "splitco2", // This would be discovered through a physical puzzle
+        passphrase: "splitco2", // This would be discovered by solving the sorting puzzle
         successMessage: `
 > PROCESSING PASSPHRASE...
 > ACCESS GRANTED
@@ -58,10 +61,43 @@ Component successfully repaired. Molecular breakdown process resuming at optimal
 Proceeding to next component...
 `,
         hints: [
-            "The passphrase is related to the function of breaking apart CO₂. Look for molecular models or diagrams in the room.",
-            "Examine any laser-related objects or puzzles. The concept of 'splitting' or 'breaking down' is key to this component.",
-            "The passphrase combines the action 'split' with the molecule 'co2'."
-        ]
+            "Look at the properties of each element to determine which category it belongs to.",
+            "Pay attention to the revealed characters as you complete each category.",
+            "The passphrase is related to the function of breaking apart CO₂."
+        ],
+        // Sorting puzzle specific data
+        puzzleType: "sorting",
+        sortingData: {
+            instructions: "Sort the molecular elements into their correct categories to reveal the system passphrase.",
+            categories: [
+                {
+                    name: "Metals",
+                    revealedCharacters: "SPLIT",
+                    items: []
+                },
+                {
+                    name: "Gases",
+                    revealedCharacters: "CO",
+                    items: []
+                },
+                {
+                    name: "Compounds",
+                    revealedCharacters: "2",
+                    items: []
+                }
+            ],
+            items: [
+                { id: "item1", name: "Iron", category: "Metals", description: "Fe - Atomic number 26" },
+                { id: "item2", name: "Oxygen", category: "Gases", description: "O - Atomic number 8" },
+                { id: "item3", name: "Sodium Chloride", category: "Compounds", description: "NaCl - Salt" },
+                { id: "item4", name: "Copper", category: "Metals", description: "Cu - Atomic number 29" },
+                { id: "item5", name: "Hydrogen", category: "Gases", description: "H - Atomic number 1" },
+                { id: "item6", name: "Carbon Dioxide", category: "Compounds", description: "CO2 - Greenhouse gas" },
+                { id: "item7", name: "Gold", category: "Metals", description: "Au - Atomic number 79" },
+                { id: "item8", name: "Helium", category: "Gases", description: "He - Atomic number 2" },
+                { id: "item9", name: "Water", category: "Compounds", description: "H2O - Essential for life" }
+            ]
+        }
     },
 
     // 3. Nuclear Energy Core Activation (03 of 09)

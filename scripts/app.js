@@ -3,6 +3,7 @@ import { initTimer, getTimeRemaining, stopTimer } from './timer.js';
 import { initTerminal, typeInTerminal, clearTerminal, appendToTerminal as appendToTerminalWithFormatting } from './terminal.js';
 import { initReactor, updateReactorStatus, getReactorSchematic } from './reactor.js';
 import { puzzles } from '../data/puzzles.js';
+import { initSortingPuzzle, cleanupSortingPuzzle, isSortingPuzzleActive } from './sorting-puzzle.js';
 
 // Game state
 const gameState = {
@@ -43,6 +44,12 @@ const remainingTimeElement = document.getElementById('remaining-time');
 const reactorPercentage = document.getElementById('reactor-percentage');
 const tabs = document.querySelectorAll('.tab');
 const tabContents = document.querySelectorAll('.tab-content');
+
+// Video briefing elements
+const videoBriefingContainer = document.getElementById('video-briefing-container');
+const bootSequenceContainer = document.getElementById('boot-sequence-container');
+const briefingVideo = document.getElementById('briefing-video');
+const skipVideoButton = document.getElementById('skip-video-button');
 
 // Terminal elements
 const terminalInput = document.getElementById('terminal-input');
@@ -118,8 +125,59 @@ function initGame() {
     // Initialize the terminal
     initTerminal(document.getElementById('terminal-display'));
     
+    // Setup video briefing first, which will lead to boot sequence after video ends or is skipped
+    setupVideoBriefing();
+}
+
+// Setup video briefing functionality
+function setupVideoBriefing() {
+    // Add event listener for when video ends
+    briefingVideo.addEventListener('ended', showBootSequence);
+    
+    // Add event listener for skip button - now the only button
+    skipVideoButton.addEventListener('click', showBootSequence);
+    
+    // Try to autoplay video if possible
+    briefingVideo.addEventListener('canplay', () => {
+        // Attempt to autoplay - modern browsers may block this
+        briefingVideo.play().catch(e => {
+            console.warn('Could not autoplay video, user needs to interact with the video controls:', e);
+        });
+    });
+    
+    // Listen for the video load error - instead of auto skipping, just show a message
+    briefingVideo.addEventListener('error', (e) => {
+        console.warn('Video failed to load:', e);
+        // Don't auto-skip, just let the user use the skip button
+        
+        // Update UI to indicate video is missing
+        const videoWrapper = document.querySelector('.video-wrapper');
+        if (videoWrapper) {
+            const errorMessage = document.createElement('div');
+            errorMessage.classList.add('video-error-message');
+            errorMessage.innerHTML = 'Video briefing not available.<br>Please click the button below to continue.';
+            videoWrapper.appendChild(errorMessage);
+        }
+    });
+    
+    // Don't auto-skip on timeout - just rely on the skip button
+}
+
+// Show boot sequence after video
+function showBootSequence() {
+    // Hide video container and show boot sequence
+    videoBriefingContainer.classList.add('hidden');
+    bootSequenceContainer.classList.remove('hidden');
+    
     // Start the boot sequence animation
     startBootSequence();
+}
+
+// Start the boot sequence animation
+function startBootSequence() {
+    typeInTerminal(bootText, bootSequenceText, 20, () => {
+        startButton.style.display = 'block';
+    });
 }
 
 // Add event listeners
@@ -250,6 +308,22 @@ function setupAdminPanel() {
             iconPreview.innerHTML = '<div style="color: #ff5555;">Invalid SVG</div>';
         }
     });
+    
+    // Add puzzle type change handler
+    const puzzleTypeSelect = document.getElementById('puzzle-type');
+    const sortingPuzzleEditor = document.getElementById('sorting-puzzle-editor');
+    
+    puzzleTypeSelect.addEventListener('change', () => {
+        if (puzzleTypeSelect.value === 'sorting') {
+            sortingPuzzleEditor.style.display = 'block';
+        } else {
+            sortingPuzzleEditor.style.display = 'none';
+        }
+    });
+    
+    // Add event listeners for sorting puzzle editor
+    document.getElementById('add-category').addEventListener('click', addNewCategory);
+    document.getElementById('add-item').addEventListener('click', addNewItem);
 }
 
 // Populate puzzle selector dropdown
@@ -289,6 +363,10 @@ function handlePuzzleSelection() {
         hintsContainer.innerHTML = '';
         document.getElementById('component-icon-svg').value = '';
         document.getElementById('component-icon-preview').innerHTML = '';
+        document.getElementById('puzzle-type').value = 'standard';
+        document.getElementById('sorting-puzzle-editor').style.display = 'none';
+        document.getElementById('categories-container').innerHTML = '';
+        document.getElementById('items-container').innerHTML = '';
         return;
     }
     
@@ -312,6 +390,103 @@ function handlePuzzleSelection() {
         iconPreview.innerHTML = '';
     }
     
+    // Set puzzle type
+    const puzzleTypeSelect = document.getElementById('puzzle-type');
+    const sortingPuzzleEditor = document.getElementById('sorting-puzzle-editor');
+    
+    if (puzzle.puzzleType === 'sorting') {
+        puzzleTypeSelect.value = 'sorting';
+        sortingPuzzleEditor.style.display = 'block';
+        
+        // Load sorting puzzle data
+        const categoriesContainer = document.getElementById('categories-container');
+        const itemsContainer = document.getElementById('items-container');
+        
+        // Clear existing data
+        categoriesContainer.innerHTML = '';
+        itemsContainer.innerHTML = '';
+        
+        // Set sorting instructions
+        document.getElementById('sorting-instructions').value = puzzle.sortingData?.instructions || '';
+        
+        // Load categories
+        if (puzzle.sortingData?.categories) {
+            puzzle.sortingData.categories.forEach(category => {
+                const categoryId = `category-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+                
+                const categoryGroup = document.createElement('div');
+                categoryGroup.className = 'category-group';
+                categoryGroup.id = categoryId;
+                
+                categoryGroup.innerHTML = `
+                    <div class="category-field">
+                        <label>Category Name:</label>
+                        <input type="text" class="category-name" value="${category.name}" placeholder="e.g., Metals">
+                    </div>
+                    <div class="category-field">
+                        <label>Revealed Characters:</label>
+                        <input type="text" class="category-characters" value="${category.revealedCharacters}" placeholder="e.g., SPLIT">
+                    </div>
+                    <button class="remove-category" data-id="${categoryId}">X</button>
+                `;
+                
+                categoriesContainer.appendChild(categoryGroup);
+                
+                // Add remove event listener
+                categoryGroup.querySelector('.remove-category').addEventListener('click', function() {
+                    document.getElementById(this.dataset.id).remove();
+                });
+            });
+        }
+        
+        // Load items
+        if (puzzle.sortingData?.items) {
+            puzzle.sortingData.items.forEach(item => {
+                const itemId = `item-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+                
+                const itemGroup = document.createElement('div');
+                itemGroup.className = 'item-group';
+                itemGroup.id = itemId;
+                
+                // Get all categories for the dropdown
+                const categoryOptions = [];
+                puzzle.sortingData.categories.forEach(category => {
+                    const selected = category.name === item.category ? 'selected' : '';
+                    categoryOptions.push(`<option value="${category.name}" ${selected}>${category.name}</option>`);
+                });
+                
+                itemGroup.innerHTML = `
+                    <div class="item-field">
+                        <label>Item Name:</label>
+                        <input type="text" class="item-name" value="${item.name}" placeholder="e.g., Iron">
+                    </div>
+                    <div class="item-field">
+                        <label>Category:</label>
+                        <select class="item-category">
+                            <option value="">Select a category</option>
+                            ${categoryOptions.join('')}
+                        </select>
+                    </div>
+                    <div class="item-field">
+                        <label>Description:</label>
+                        <input type="text" class="item-description" value="${item.description}" placeholder="e.g., Fe - Atomic number 26">
+                    </div>
+                    <button class="remove-item" data-id="${itemId}">X</button>
+                `;
+                
+                itemsContainer.appendChild(itemGroup);
+                
+                // Add remove event listener
+                itemGroup.querySelector('.remove-item').addEventListener('click', function() {
+                    document.getElementById(this.dataset.id).remove();
+                });
+            });
+        }
+    } else {
+        puzzleTypeSelect.value = 'standard';
+        sortingPuzzleEditor.style.display = 'none';
+    }
+    
     // Add hint inputs
     hintsContainer.innerHTML = '';
     puzzle.hints.forEach((hint, index) => {
@@ -322,6 +497,79 @@ function handlePuzzleSelection() {
 // Add a new hint input
 function addNewHint() {
     addHintInput('');
+}
+
+// Add a new category to the sorting puzzle editor
+function addNewCategory() {
+    const categoriesContainer = document.getElementById('categories-container');
+    const categoryId = `category-${Date.now()}`;
+    
+    const categoryGroup = document.createElement('div');
+    categoryGroup.className = 'category-group';
+    categoryGroup.id = categoryId;
+    
+    categoryGroup.innerHTML = `
+        <div class="category-field">
+            <label>Category Name:</label>
+            <input type="text" class="category-name" placeholder="e.g., Metals">
+        </div>
+        <div class="category-field">
+            <label>Revealed Characters:</label>
+            <input type="text" class="category-characters" placeholder="e.g., SPLIT">
+        </div>
+        <button class="remove-category" data-id="${categoryId}">X</button>
+    `;
+    
+    categoriesContainer.appendChild(categoryGroup);
+    
+    // Add remove event listener
+    categoryGroup.querySelector('.remove-category').addEventListener('click', function() {
+        document.getElementById(this.dataset.id).remove();
+    });
+}
+
+// Add a new item to the sorting puzzle editor
+function addNewItem() {
+    const itemsContainer = document.getElementById('items-container');
+    const itemId = `item-${Date.now()}`;
+    
+    // Get all current categories for the dropdown
+    const categoryOptions = [];
+    document.querySelectorAll('.category-name').forEach(input => {
+        if (input.value.trim()) {
+            categoryOptions.push(`<option value="${input.value}">${input.value}</option>`);
+        }
+    });
+    
+    const itemGroup = document.createElement('div');
+    itemGroup.className = 'item-group';
+    itemGroup.id = itemId;
+    
+    itemGroup.innerHTML = `
+        <div class="item-field">
+            <label>Item Name:</label>
+            <input type="text" class="item-name" placeholder="e.g., Iron">
+        </div>
+        <div class="item-field">
+            <label>Category:</label>
+            <select class="item-category">
+                <option value="">Select a category</option>
+                ${categoryOptions.join('')}
+            </select>
+        </div>
+        <div class="item-field">
+            <label>Description:</label>
+            <input type="text" class="item-description" placeholder="e.g., Fe - Atomic number 26">
+        </div>
+        <button class="remove-item" data-id="${itemId}">X</button>
+    `;
+    
+    itemsContainer.appendChild(itemGroup);
+    
+    // Add remove event listener
+    itemGroup.querySelector('.remove-item').addEventListener('click', function() {
+        document.getElementById(this.dataset.id).remove();
+    });
 }
 
 // Add a hint input with optional initial value
@@ -367,8 +615,11 @@ function savePuzzle() {
     // Get custom SVG icon if available
     const iconSvg = document.getElementById('component-icon-svg').value.trim();
     
-    // Update puzzle data
-    gameState.editedPuzzles[puzzleIndex] = {
+    // Determine puzzle type
+    const puzzleType = document.getElementById('puzzle-type').value;
+    
+    // Create the base puzzle data
+    const puzzleData = {
         componentName: componentNameInput.value.trim(),
         passphrase: passphraseInput.value.trim(),
         initialMessage: initialMessageInput.value.trim(),
@@ -376,6 +627,57 @@ function savePuzzle() {
         hints: hints,
         iconSvg: iconSvg // Store the custom SVG icon code
     };
+    
+    // Add sorting puzzle data if applicable
+    if (puzzleType === 'sorting') {
+        puzzleData.puzzleType = 'sorting';
+        
+        // Get sorting instructions
+        const sortingInstructions = document.getElementById('sorting-instructions').value.trim();
+        
+        // Get categories
+        const categories = [];
+        document.querySelectorAll('.category-group').forEach(group => {
+            const name = group.querySelector('.category-name').value.trim();
+            const revealedCharacters = group.querySelector('.category-characters').value.trim();
+            
+            if (name && revealedCharacters) {
+                categories.push({
+                    name,
+                    revealedCharacters,
+                    items: [] // Initialize empty items array for each category
+                });
+            }
+        });
+        
+        // Get items
+        const items = [];
+        document.querySelectorAll('.item-group').forEach(group => {
+            const id = `item${items.length + 1}`;
+            const name = group.querySelector('.item-name').value.trim();
+            const category = group.querySelector('.item-category').value.trim();
+            const description = group.querySelector('.item-description').value.trim();
+            
+            if (name && category) {
+                items.push({
+                    id,
+                    name,
+                    category,
+                    description: description || ''
+                });
+            }
+        });
+        
+        // Add sorting data to puzzle
+        puzzleData.sortingData = {
+            instructions: sortingInstructions || 'Sort the items into their correct categories to reveal the passphrase.',
+            categories,
+            items
+        };
+    }
+    
+    // Update puzzle data
+    gameState.editedPuzzles[puzzleIndex] = puzzleData;
     
     // Update dropdown label
     populatePuzzleSelector();
@@ -432,13 +734,6 @@ function importPuzzles() {
     input.click();
 }
 
-// Start the boot sequence animation
-function startBootSequence() {
-    typeInTerminal(bootText, bootSequenceText, 20, () => {
-        startButton.style.display = 'block';
-    });
-}
-
 // Start the actual game
 function startGame() {
     // Hide startup screen, show main screen
@@ -478,7 +773,16 @@ function loadPuzzle(index) {
     clearTerminal();
     
     // Type the puzzle message in the terminal
-    typeInTerminal(document.getElementById('terminal-display'), puzzle.initialMessage, 10);
+    typeInTerminal(document.getElementById('terminal-display'), puzzle.initialMessage, 10, () => {
+        // After displaying the initial message, check if this is a sorting puzzle
+        if (puzzle.puzzleType === 'sorting') {
+            // Initialize sorting puzzle
+            initSortingPuzzle(puzzle.sortingData, () => {
+                // Callback for when puzzle is completed - not used currently,
+                // as the user still needs to enter the passphrase
+            });
+        }
+    });
     
     // Update reactor status to set active component
     updateReactorStatus(index - 1, index);
@@ -506,6 +810,11 @@ function handleTerminalSubmit() {
         
         // Clear the input
         terminalInput.value = '';
+        
+        // Clean up sorting puzzle if active
+        if (isSortingPuzzleActive()) {
+            cleanupSortingPuzzle();
+        }
         
         // Update terminal with success message
         clearTerminal();
@@ -857,8 +1166,16 @@ function resetGame() {
     bootText.innerHTML = '';
     startButton.style.display = 'none';
     
-    // Start boot sequence again
-    startBootSequence();
+    // Reset video and show video briefing container
+    if (briefingVideo) {
+        briefingVideo.currentTime = 0;
+        briefingVideo.pause();
+    }
+    videoBriefingContainer.classList.remove('hidden');
+    bootSequenceContainer.classList.add('hidden');
+    
+    // Setup video briefing again
+    setupVideoBriefing();
 }
 
 // Append text to the terminal - maintains backward compatibility

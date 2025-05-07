@@ -1,0 +1,13 @@
+N.R.R.C Video Poster Image
+
+Description:
+This poster image should be a 16:9 ratio image (1280x720 recommended) with the following elements:
+
+1. Dark background with tech/sci-fi styling matching the game's aesthetic
+2. N.R.R.C logo prominently displayed
+3. "EMERGENCY TRANSMISSION" text in warning/alert styling
+4. Red emergency lights or warning indicators
+5. Reactor schematic partially visible in the background
+6. Optional: Image of the Director of Operations (Dr. Eliza Chen) looking concerned
+
+The image should create a sense of urgency and fit the terminal/retro-futuristic aesthetic of the game. 
