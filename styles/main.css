@@ -1443,10 +1443,25 @@ body, #game-container, .screen, .terminal-display, .reactor-schematic {
     text-align: left;
     scrollbar-width: thin;
     scrollbar-color: #39ff14 #001100;
+    cursor: auto;
 }
 
+/* Add a subtle indicator to show the text is scrollable */
+.transmission-text.user-scrollable::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 25px;
+    background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.8));
+    pointer-events: none;
+    border-radius: 0 0 6px 6px;
+}
+
+/* Make the scrollbar more visible for user scrolling */
 .transmission-text::-webkit-scrollbar {
-    width: 10px;
+    width: 12px;
     background: #001100;
 }
 
@@ -1458,6 +1473,7 @@ body, #game-container, .screen, .terminal-display, .reactor-schematic {
 
 .transmission-text::-webkit-scrollbar-thumb:hover {
     background: #eaff7b;
+    box-shadow: 0 0 12px #eaff7bcc;
 }
 
 .transmission-text.hidden {

@@ -710,6 +710,25 @@ function setupVideoBriefing() {
         replayBtn.style.display = 'none';
         skipBtn.style.display = 'inline-block';
         
+        // Create or update the transmission text container and scroll indicator
+        let container = document.querySelector('.transmission-text-container');
+        if (!container) {
+            // Create container if it doesn't exist
+            container = document.createElement('div');
+            container.className = 'transmission-text-container';
+            
+            // Move the transmission text into the container
+            const parent = transmissionText.parentNode;
+            parent.insertBefore(container, transmissionText);
+            container.appendChild(transmissionText);
+            
+            // Add scroll indicator
+            const scrollIndicator = document.createElement('div');
+            scrollIndicator.className = 'scroll-indicator';
+            scrollIndicator.textContent = 'Scroll for more';
+            container.appendChild(scrollIndicator);
+        }
+        
         // Set a flag to track if we've already displayed the text
         let textDisplayed = false;
         
@@ -730,20 +749,41 @@ function setupVideoBriefing() {
                 transmissionText.textContent = '';
             }
             
-            // Simple typewriter effect
+            // Add a class to indicate user can scroll manually
+            transmissionText.classList.add('user-scrollable');
+            
+            // Flag to track if user has manually scrolled
+            let userHasScrolled = false;
+            
+            // Add event listener to detect manual scrolling
+            const scrollHandler = () => {
+                // If user scrolls manually, set the flag
+                if (transmissionText.scrollTop < transmissionText.scrollHeight - transmissionText.clientHeight - 50) {
+                    userHasScrolled = true;
+                }
+            };
+            
+            transmissionText.addEventListener('scroll', scrollHandler);
+            
+            // Simple typewriter effect - slower speed (60ms instead of 30ms)
             let idx = 0;
             const chars = transmissionScript.split('');
             const interval = setInterval(() => {
                 if (idx < chars.length) {
                     transmissionText.textContent += chars[idx];
                     idx++;
-                    // Auto-scroll
-                    transmissionText.scrollTop = transmissionText.scrollHeight;
+                    
+                    // Auto-scroll only if user hasn't manually scrolled
+                    if (!userHasScrolled) {
+                        transmissionText.scrollTop = transmissionText.scrollHeight;
+                    }
                 } else {
                     clearInterval(interval);
+                    // Clean up event listener
+                    transmissionText.removeEventListener('scroll', scrollHandler);
                     replayBtn.style.display = 'inline-block';
                 }
-            }, 30);
+            }, 60); // Slower text typing (doubled from 30ms to 60ms)
         }
         
         // Try to play audio, but we'll show text regardless
