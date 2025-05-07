@@ -267,6 +267,13 @@ function setupVideoBriefing() {
     // Hide skip button initially
     skipBtn.style.display = 'none';
 
+    // Add error logging for audio
+    transmissionAudio.onerror = function(e) {
+        console.error('Transmission audio failed to load:', e);
+        transmissionText.textContent = 'TRANSMISSION AUDIO FAILED TO LOAD. Displaying text only.';
+        transmissionText.classList.remove('hidden');
+    };
+
     // Helper to play the transmission
     function playTransmission() {
         transmissionText.textContent = '';
@@ -274,9 +281,22 @@ function setupVideoBriefing() {
         replayBtn.style.display = 'none';
         skipBtn.style.display = 'inline-block';
         transmissionAudio.currentTime = 0;
-        transmissionAudio.play();
+        // Try to play audio, fallback to text if error
+        transmissionAudio.play().catch(e => {
+            console.error('Audio play failed:', e);
+            transmissionText.textContent = 'TRANSMISSION AUDIO FAILED TO PLAY. Displaying text only.';
+            transmissionText.classList.remove('hidden');
+        });
         transmissionAudio.style.display = 'none';
+        let fallbackTimeout = setTimeout(() => {
+            if (transmissionText.textContent === '') {
+                transmissionText.textContent = transmissionScript;
+                transmissionText.classList.remove('hidden');
+                console.warn('Audio metadata never loaded, showing text fallback.');
+            }
+        }, 5000);
         typewriterSyncToAudio(transmissionScript, transmissionText, transmissionAudio, () => {
+            clearTimeout(fallbackTimeout);
             replayBtn.style.display = 'inline-block';
             // Remove cursor at end
             const cursor = transmissionText.querySelector('.terminal-cursor');
@@ -960,10 +980,14 @@ function startGame() {
     
     tabContents.forEach(content => content.classList.add('hidden'));
     tabContents[0].classList.remove('hidden');
+
+    // Clear localStorage for a clean state
+    localStorage.removeItem('nrrcPuzzles');
 }
 
 // Load a puzzle
 function loadPuzzle(index) {
+    console.log('Loading puzzle', index);
     // Update the current puzzle indicator
     currentPuzzleElement.textContent = (index + 1).toString().padStart(2, '0');
     // Get the current puzzle from edited puzzles
@@ -1013,7 +1037,7 @@ function handleTerminalSubmit() {
     appendToTerminalWithFormatting('\n<span class="system-text">&gt; Processing passphrase...</span>');
     // Get current puzzle from edited puzzles
     const puzzle = gameState.editedPuzzles[gameState.currentPuzzle];
-    // Check if the answer is correct
+    console.log('Current puzzle index:', gameState.currentPuzzle, 'User input:', userInput, 'Expected:', puzzle.passphrase);
     setTimeout(() => {
         if (userInput.toLowerCase() === puzzle.passphrase.toLowerCase()) {
             // Success animation
@@ -1050,6 +1074,7 @@ function handleTerminalSubmit() {
                         terminalInput.value = '';
                         // Update the reactor status
                         gameState.currentPuzzle++;
+                        console.log('Advancing to puzzle', gameState.currentPuzzle);
                         updateReactorProgress();
                         // Check if all puzzles are solved
                         if (gameState.currentPuzzle >= gameState.totalPuzzles) {
@@ -1078,6 +1103,7 @@ function handleTerminalSubmit() {
                     terminalInput.value = '';
                     // Update the reactor status
                     gameState.currentPuzzle++;
+                    console.log('Advancing to puzzle', gameState.currentPuzzle);
                     updateReactorProgress();
                     // Check if all puzzles are solved
                     if (gameState.currentPuzzle >= gameState.totalPuzzles) {
@@ -1313,6 +1339,9 @@ function resetGame() {
     
     // Setup video briefing again
     setupVideoBriefing();
+
+    // Clear localStorage for a clean state
+    localStorage.removeItem('nrrcPuzzles');
 }
 
 // Append text to the terminal - maintains backward compatibility
