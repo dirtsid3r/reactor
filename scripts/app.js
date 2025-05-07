@@ -1261,3 +1261,397 @@ function importPuzzles() {
     };
     input.click();
 }
+
+// Start the actual game
+function startGame() {
+    // Hide startup screen, show main screen
+    startupScreen.classList.add('hidden');
+    mainScreen.classList.remove('hidden');
+    // Stop and reset audio if still playing
+    const transmissionAudio = document.getElementById('transmission-audio');
+    if (transmissionAudio) {
+        transmissionAudio.pause();
+        transmissionAudio.currentTime = 0;
+    }
+    // Set game as active
+    gameState.isGameActive = true;
+    gameState.startTime = new Date();
+    
+    // Initialize the timer - FIX: Pass seconds first, then the gameOver callback
+    initTimer(45 * 60, () => gameOver(false));
+    
+    // Load the first puzzle
+    loadPuzzle(0);
+    
+    // Initialize reactor with first component active
+    updateReactorStatus([], 0);
+    
+    // Reset tab selection
+    tabs.forEach(tab => tab.classList.remove('active'));
+    tabs[0].classList.add('active');
+    
+    tabContents.forEach(content => content.classList.add('hidden'));
+    tabContents[0].classList.remove('hidden');
+
+    // Clear localStorage for a clean state
+    localStorage.removeItem('nrrcPuzzles');
+}
+
+// Load a puzzle
+function loadPuzzle(index) {
+    console.log('Loading puzzle', index);
+    // Update the current puzzle indicator
+    currentPuzzleElement.textContent = (index + 1).toString().padStart(2, '0');
+    // Get the current puzzle from edited puzzles
+    const puzzle = gameState.editedPuzzles[index];
+    // Clear the terminal
+    clearTerminal();
+    // Type the puzzle message in the terminal (restore typewriter effect)
+    typeInTerminal(document.getElementById('terminal-display'), puzzle.initialMessage, 10, () => {
+        // After displaying the initial message, check if this is a sorting puzzle
+        if (puzzle.puzzleType === 'sorting') {
+            // Initialize sorting puzzle
+            initSortingPuzzle(puzzle.sortingData, () => {
+                // Callback for when puzzle is completed - not used currently,
+                // as the user still needs to enter the passphrase
+            });
+        }
+    });
+    // Update reactor status to set active component
+    updateReactorStatus(index - 1, index);
+    // Focus on the terminal input
+    terminalInput.focus();
+}
+
+// Helper to append normal or system text to terminal
+function appendPuzzleMessage(text, componentName = null) {
+    // Add green system message above each puzzle
+    if (componentName) {
+        appendToTerminalWithFormatting(`\n<span class=\"system-text\">&gt; COMPONENT REPAIR INITIATED: ${componentName.toUpperCase()}</span>`);
+    }
+    // If text starts with '>', treat as system message
+    if (/^>/.test(text.trim())) {
+        appendToTerminalWithFormatting(`\n<span class=\"system-text\">${text}</span>`);
+    } else {
+        appendToTerminalWithFormatting(`\n<span class=\"terminal-normal\">${text}</span>`);
+    }
+    // Remove any lingering terminal cursor after output
+    const terminal = document.getElementById('terminal-display');
+    const cursor = terminal && terminal.querySelector('.terminal-cursor');
+    if (cursor) cursor.remove();
+}
+
+// Update reactor progress
+function updateReactorProgress() {
+    const progressPercentage = Math.floor((gameState.currentPuzzle / gameState.totalPuzzles) * 100);
+    
+    // Update percentage text with animation
+    animateValue(reactorPercentage, parseInt(reactorPercentage.textContent), progressPercentage, 1000);
+    
+    // Update reactor schematic
+    updateReactorStatus(gameState.currentPuzzle - 1, gameState.currentPuzzle);
+}
+
+// Animate value change
+function animateValue(element, start, end, duration) {
+    let startTime = null;
+    
+    function animation(currentTime) {
+        if (startTime === null) startTime = currentTime;
+        const timeElapsed = currentTime - startTime;
+        const progress = Math.min(timeElapsed / duration, 1);
+        const value = Math.floor(progress * (end - start) + start);
+        
+        element.textContent = value;
+        
+        if (progress < 1) {
+            requestAnimationFrame(animation);
+        }
+    }
+    
+    requestAnimationFrame(animation);
+}
+
+// Game over
+function gameOver(success) {
+    gameState.isGameActive = false;
+    gameState.endTime = new Date();
+    
+    // Stop the timer
+    stopTimer();
+    
+    // Hide main screen
+    mainScreen.classList.add('hidden');
+    
+    if (success) {
+        // Show success screen
+        successScreen.classList.remove('hidden');
+        
+        // Update remaining time
+        remainingTimeElement.textContent = getTimeRemaining();
+    } else {
+        // Show failure screen
+        failureScreen.classList.remove('hidden');
+    }
+}
+
+// Handle terminal submit
+function handleTerminalSubmit() {
+    const userInput = terminalInput.value.trim();
+    soundManager.play('keystroke');
+    
+    if (userInput === '') return;
+    
+    // Get current puzzle from edited puzzles
+    const puzzle = gameState.editedPuzzles[gameState.currentPuzzle];
+    
+    // Check if the answer is correct
+    if (userInput.toLowerCase() === puzzle.passphrase.toLowerCase()) {
+        // Play success sound
+        soundManager.play('success');
+        
+        // Success animation
+        document.getElementById('terminal-display').classList.add('success-flash');
+        setTimeout(() => {
+            document.getElementById('terminal-display').classList.remove('success-flash');
+        }, 500);
+        
+        // Clear the input
+        terminalInput.value = '';
+        
+        // Clean up sorting puzzle if active
+        if (isSortingPuzzleActive && typeof isSortingPuzzleActive === 'function' && isSortingPuzzleActive()) {
+            cleanupSortingPuzzle();
+        }
+        
+        // Update terminal with success message
+        clearTerminal();
+        typeInTerminal(document.getElementById('terminal-display'), puzzle.successMessage, 10, () => {
+            // Add confirmation prompt at the end - using ENTER key instead of typing "continue"
+            appendToTerminalWithFormatting('\n\n> COMPONENT REPAIR COMPLETE\n> Press ENTER to continue to the next component...');
+            
+            // Focus back on the terminal input
+            terminalInput.focus();
+            
+            // Disable normal terminal submission temporarily
+            const originalSubmitHandler = terminalInput.onkeypress;
+            terminalInput.onkeypress = null;
+            
+            // Create one-time event listener for the confirmation
+            const confirmationHandler = function(e) {
+                if (e.key === 'Enter') {
+                    // Remove this event listener once confirmed
+                    terminalInput.removeEventListener('keypress', confirmationHandler);
+                    
+                    // Restore original handler if there was one
+                    if (originalSubmitHandler) {
+                        terminalInput.onkeypress = originalSubmitHandler;
+                    }
+                    
+                    // Clear the input
+                    terminalInput.value = '';
+                    
+                    // Play button sound
+                    soundManager.play('button');
+                    
+                    // Update the reactor status
+                    gameState.currentPuzzle++;
+                    updateReactorProgress();
+                    
+                    // Check if all puzzles are solved
+                    if (gameState.currentPuzzle >= gameState.totalPuzzles) {
+                        gameOver(true);
+                    } else {
+                        // Load the next puzzle
+                        loadPuzzle(gameState.currentPuzzle);
+                    }
+                    
+                    // Prevent default Enter behavior
+                    e.preventDefault();
+                    return false;
+                }
+            };
+            
+            // Add temporary event listener for confirmation
+            terminalInput.addEventListener('keypress', confirmationHandler);
+            
+            // Also update the submit button to handle the confirmation
+            const submitClickHandler = function() {
+                // Remove event listeners
+                terminalInput.removeEventListener('keypress', confirmationHandler);
+                terminalSubmit.removeEventListener('click', submitClickHandler);
+                
+                // Restore original handler if there was one
+                if (originalSubmitHandler) {
+                    terminalInput.onkeypress = originalSubmitHandler;
+                }
+                
+                // Clear the input
+                terminalInput.value = '';
+                
+                // Play button sound
+                soundManager.play('button');
+                
+                // Update the reactor status
+                gameState.currentPuzzle++;
+                updateReactorProgress();
+                
+                // Check if all puzzles are solved
+                if (gameState.currentPuzzle >= gameState.totalPuzzles) {
+                    gameOver(true);
+                } else {
+                    // Load the next puzzle
+                    loadPuzzle(gameState.currentPuzzle);
+                }
+            };
+            
+            // Add temporary event listener for submit button
+            terminalSubmit.addEventListener('click', submitClickHandler);
+        });
+    } else {
+        // Play error sound
+        soundManager.play('error');
+        
+        // Error animation
+        document.getElementById('terminal-display').classList.add('error-shake');
+        setTimeout(() => {
+            document.getElementById('terminal-display').classList.remove('error-shake');
+        }, 500);
+        
+        // Show error message
+        appendToTerminalWithFormatting('\n\n> ERROR: Invalid passphrase. Please try again.');
+        
+        // Clear the input
+        terminalInput.value = '';
+    }
+}
+
+// Returns a set of introduction messages for E.C.H.O.
+function getEchoIntroMessages() {
+    return [
+        "INITIALIZING E.C.H.O...",
+        "Environmental Carbon Helper Operative online and ready to assist.",
+        "My systems indicate that you're attempting to repair the N.R.R.C facility. I'm here to provide hints and guidance on your mission.",
+        "If you need a hint about the current component, just ask. Or we can discuss the environmental impact of carbon recycling if you prefer."
+    ];
+}
+
+// Add chat messages sequentially with delay
+function addChatMessages(messages, sender, delay = 300) {
+    if (!Array.isArray(messages) || messages.length === 0) return;
+    
+    let index = 0;
+    
+    function addNextMessage() {
+        if (index < messages.length) {
+            addMessageToChat(messages[index], sender);
+            index++;
+            setTimeout(addNextMessage, delay);
+        }
+    }
+    
+    addNextMessage();
+}
+
+// Add a message to the AI chat
+function addMessageToChat(message, sender) {
+    const messageElement = document.createElement('div');
+    messageElement.classList.add('message');
+    messageElement.classList.add(sender === 'user' ? 'user-message' : 'ai-message');
+    messageElement.textContent = message;
+    
+    assistantMessages.appendChild(messageElement);
+    assistantMessages.scrollTop = assistantMessages.scrollHeight;
+    
+    // Play hint sound if it's an AI message
+    if (sender === 'ai') {
+        soundManager.play('hint');
+    }
+}
+
+// Handle AI assistant submit
+function handleAssistantSubmit() {
+    const userInput = assistantInput.value.trim();
+    
+    if (userInput === '') return;
+    
+    // Add user message to chat
+    addMessageToChat(userInput, 'user');
+    
+    // Clear input
+    assistantInput.value = '';
+    
+    // Show thinking indicator
+    const thinkingElement = document.createElement('div');
+    thinkingElement.classList.add('thinking');
+    thinkingElement.innerHTML = 'E.C.H.O. is processing<span class="thinking-dots"></span>';
+    assistantMessages.appendChild(thinkingElement);
+    assistantMessages.scrollTop = assistantMessages.scrollHeight;
+    
+    // Get current puzzle from edited puzzles
+    const puzzle = gameState.editedPuzzles[gameState.currentPuzzle];
+    
+    // Analyze user input for different types of queries
+    const input = userInput.toLowerCase();
+    const isAskingForHint = /hint|clue|help|stuck|how|what|solve|answer|solution/i.test(input);
+    const isGreeting = /^(hi|hello|hey|greetings|sup|yo|howdy)/i.test(input);
+    const isAskingAboutAssistant = /(who|what).*you|your name|about you/i.test(input);
+    const isAskingAboutProcess = /how.*work|process|explain|reactor|recycling/i.test(input);
+    const isThanking = /thank|thanks|appreciated|helpful/i.test(input);
+    const isCommentingOnAI = /\b(ai|artificial|intelligence|robot|bot|computer)\b/i.test(input);
+    const isAskingObvious = /\b(life|alive|human|real|purpose|meaning)\b/i.test(input);
+    
+    // Shorter delay to make it more responsive (3s instead of 10s)
+    setTimeout(() => {
+        // Remove thinking indicator
+        assistantMessages.removeChild(thinkingElement);
+        
+        // Select appropriate response
+        if (isAskingForHint) {
+            // Get appropriate hint based on hints used
+            const hintIndex = Math.min(gameState.hintsUsed, puzzle.hints.length - 1);
+            const hint = puzzle.hints[hintIndex];
+            
+            // Add AI message with hint
+            addMessageToChat(hint, 'ai');
+            
+            // Increment hints used
+            gameState.hintsUsed++;
+        } 
+        else if (isGreeting) {
+            const greetings = [
+                "Hello! I'm E.C.H.O., your Environmental Carbon Helper Operative. How can I assist with the reactor today?",
+                "Greetings! E.C.H.O. at your service. Need a hint?",
+                "Hi there! I'm here to help you save the facility. Need assistance?"
+            ];
+            
+            addMessageToChat(greetings[Math.floor(Math.random() * greetings.length)], 'ai');
+        }
+        else if (isAskingAboutAssistant) {
+            addMessageToChat("I am E.C.H.O. - Environmental Carbon Helper Operative, an AI designed to assist with nuclear carbon recycling operations. I can provide hints about the reactor components you're trying to repair.", 'ai');
+        }
+        else if (isAskingAboutProcess) {
+            addMessageToChat("The N.R.R.C. facility uses advanced fission to break down carbon compounds into base elements, then reconfigures them into reusable materials. This reduces greenhouse emissions by over 90% compared to traditional methods. The reactor you're trying to fix prevents thousands of metric tons of carbon from entering the atmosphere annually.", 'ai');
+        }
+        else if (isThanking) {
+            const thanks = [
+                "You're welcome! I'm here to help.",
+                "Happy to assist. Need anything else?",
+                "No problem. Good luck with the reactor repairs!"
+            ];
+            
+            addMessageToChat(thanks[Math.floor(Math.random() * thanks.length)], 'ai');
+        }
+        else {
+            // Generic responses
+            const responses = [
+                "I'm not sure I understand. If you need a hint about the current reactor component, just ask.",
+                "If you're stuck on the current puzzle, try asking for a hint.",
+                "I'm here to help with the reactor components. Need a hint?"
+            ];
+            
+            const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+            addMessageToChat(randomResponse, 'ai');
+        }
+    }, 3000); // 3 second delay
+}
