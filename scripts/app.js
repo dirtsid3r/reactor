@@ -805,11 +805,11 @@ function typewriterSyncToAudio(text, targetElem, audioElem, onDone) {
     const chars = text.split('');
     const totalChars = chars.length;
     // Slow down: 0.75x (was 0.6x)
-    const msPerChar = ((totalDuration * 1000) / totalChars) * 0.75;
+    const msPerChar = ((totalDuration * 1000) / totalChars) * 0.85;
     let idx = 0;
     targetElem.textContent = '';
     // Slightly slower audio
-    if (audioElem) audioElem.playbackRate = 1.3;
+    if (audioElem) audioElem.playbackRate = 1.5;
     function typeNext() {
         if (idx < totalChars) {
             // Remove old cursor
