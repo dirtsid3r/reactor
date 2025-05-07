@@ -1,333 +1,147 @@
-// Export an array of puzzles
+// Export an array of puzzles generated from the CSV
 export const puzzles = [
-    // 1. Carbon Intake & Capture (01 of 09)
-    {
-        componentName: "Carbon Intake & Capture",
-        initialMessage: `
-> COMPONENT FAILURE: Carbon Intake & Capture System
-> SYSTEM STATUS: OFFLINE
-> FUNCTION: Atmospheric CO₂ collection using ionized air vacuums and nano-filtration membranes
-
-The Carbon Intake & Capture system has failed. This is the first stage of the reactor process, 
-responsible for drawing in atmospheric carbon dioxide and filtering it for processing.
-
-To repair this component, locate and enter the correct passphrase.
-`,
-        passphrase: "capturecarbon", // This would be discovered through a physical puzzle
-        successMessage: `
-> PROCESSING PASSPHRASE...
-> ACCESS GRANTED
-> INITIATING SYSTEM REPAIR...
-> RECALIBRATING NANO-FILTRATION MEMBRANES
-> REACTIVATING IONIZED AIR VACUUMS
-> CARBON INTAKE & CAPTURE: ONLINE
-
-Component successfully repaired. Carbon intake levels returning to optimal range.
-Proceeding to next component...
-`,
-        hints: [
-            "Look for clues related to the carbon capture process. The passphrase might be hidden in plain sight.",
-            "Examine any filtration or vacuum-related objects in the room. The passphrase could be revealed by arranging components correctly.",
-            "The passphrase is two words combined: 'capture' and 'carbon'."
-        ]
-    },
-
-    // 2. Molecular Disassembly (02 of 09) - Sorting Puzzle
-    {
-        componentName: "Molecular Disassembly",
-        initialMessage: `
-> COMPONENT FAILURE: Molecular Disassembly Unit
-> SYSTEM STATUS: OFFLINE
-> FUNCTION: Breaking down CO₂ into carbon and oxygen atoms using high-frequency lasers and quantum resonance fields
-
-The Molecular Disassembly unit has malfunctioned. This critical component separates carbon dioxide 
-molecules into their constituent parts for further processing.
-
-Diagnostic shows data sorting error. Molecular elements must be properly categorized to restore system function.
-Use the terminal interface to sort the elements into their proper categories.
-
-INSTRUCTION: Drag and drop each element into its correct category.
-`,
-        passphrase: "splitco2", // This would be discovered by solving the sorting puzzle
-        successMessage: `
-> PROCESSING PASSPHRASE...
-> ACCESS GRANTED
-> INITIATING SYSTEM REPAIR...
-> RECALIBRATING QUANTUM RESONANCE FIELDS
-> REACTIVATING HIGH-FREQUENCY LASERS
-> MOLECULAR DISASSEMBLY: ONLINE
-
-Component successfully repaired. Molecular breakdown process resuming at optimal efficiency.
-Proceeding to next component...
-`,
-        hints: [
-            "Look at the properties of each element to determine which category it belongs to.",
-            "Pay attention to the revealed characters as you complete each category.",
-            "The passphrase is related to the function of breaking apart CO₂."
-        ],
-        // Sorting puzzle specific data
-        puzzleType: "sorting",
-        sortingData: {
-            instructions: "Sort the molecular elements into their correct categories to reveal the system passphrase.",
-            categories: [
-                {
-                    name: "Metals",
-                    revealedCharacters: "SPLIT",
-                    items: []
-                },
-                {
-                    name: "Gases",
-                    revealedCharacters: "CO",
-                    items: []
-                },
-                {
-                    name: "Compounds",
-                    revealedCharacters: "2",
-                    items: []
-                }
-            ],
-            items: [
-                { id: "item1", name: "Iron", category: "Metals", description: "Fe - Atomic number 26" },
-                { id: "item2", name: "Oxygen", category: "Gases", description: "O - Atomic number 8" },
-                { id: "item3", name: "Sodium Chloride", category: "Compounds", description: "NaCl - Salt" },
-                { id: "item4", name: "Copper", category: "Metals", description: "Cu - Atomic number 29" },
-                { id: "item5", name: "Hydrogen", category: "Gases", description: "H - Atomic number 1" },
-                { id: "item6", name: "Carbon Dioxide", category: "Compounds", description: "CO2 - Greenhouse gas" },
-                { id: "item7", name: "Gold", category: "Metals", description: "Au - Atomic number 79" },
-                { id: "item8", name: "Helium", category: "Gases", description: "He - Atomic number 2" },
-                { id: "item9", name: "Water", category: "Compounds", description: "H2O - Essential for life" }
-            ]
-        }
-    },
-
-    // 3. Nuclear Energy Core Activation (03 of 09)
-    {
-        componentName: "Nuclear Energy Core",
-        initialMessage: `
-> COMPONENT FAILURE: Nuclear Energy Core
-> SYSTEM STATUS: OFFLINE
-> FUNCTION: Thorium-based molten salt reactor providing power for the facility
-
-The Nuclear Energy Core has shut down. This component is the primary power source for the entire 
-facility and must be reactivated to continue operations.
-
-To repair this component, locate and enter the correct passphrase.
-`,
-        passphrase: "thoriumpower", // This would be discovered through a physical puzzle
-        successMessage: `
-> PROCESSING PASSPHRASE...
-> ACCESS GRANTED
-> INITIATING SYSTEM REPAIR...
-> RESTABILIZING MOLTEN SALT MEDIUM
-> REINITIATING THORIUM REACTION
-> NUCLEAR ENERGY CORE: ONLINE
-
-Component successfully repaired. Power generation returning to optimal levels.
-Proceeding to next component...
-`,
-        hints: [
-            "The reactor uses thorium as its fuel source. Look for periodic table references or atomic symbols in the room.",
-            "Examine any power-related puzzles or equipment. The passphrase relates to the specific type of nuclear energy used.",
-            "The passphrase combines 'thorium' with the word 'power'."
-        ]
-    },
-
-    // 4. Isotopic Reformation (04 of 09)
-    {
-        componentName: "Isotopic Reformation",
-        initialMessage: `
-> COMPONENT FAILURE: Isotopic Reformation Chamber
-> SYSTEM STATUS: OFFLINE
-> FUNCTION: Rearrangement of carbon atoms through magnetic fields and neutron baths to create synthetic hydrocarbons
-
-The Isotopic Reformation Chamber has malfunctioned. This component rearranges carbon atoms into 
-useful molecular structures through quantum manipulation.
-
-To repair this component, locate and enter the correct passphrase.
-`,
-        passphrase: "rearrangeatoms", // This would be discovered through a physical puzzle
-        successMessage: `
-> PROCESSING PASSPHRASE...
-> ACCESS GRANTED
-> INITIATING SYSTEM REPAIR...
-> RECALIBRATING MAGNETIC FIELDS
-> REACTIVATING NEUTRON BATHS
-> ISOTOPIC REFORMATION: ONLINE
-
-Component successfully repaired. Atomic restructuring operating at optimal parameters.
-Proceeding to next component...
-`,
-        hints: [
-            "The passphrase relates to reorganizing or restructuring atoms. Look for puzzles with movable parts that need rearrangement.",
-            "Examine any magnetic objects or puzzles involving atomic structures. The concept of 'reorganizing' is key.",
-            "The passphrase combines 'rearrange' with 'atoms'."
-        ]
-    },
-
-    // 5. Cryogenic Carbon Storage (05 of 09)
-    {
-        componentName: "Cryogenic Carbon Storage",
-        initialMessage: `
-> COMPONENT FAILURE: Cryogenic Carbon Storage
-> SYSTEM STATUS: OFFLINE
-> FUNCTION: High-pressure storage of carbon in solid, nano-lattice form
-
-The Cryogenic Carbon Storage system has failed. This component safely stores processed carbon 
-in a stable, solid state using extreme cold and pressure.
-
-To repair this component, locate and enter the correct passphrase.
-`,
-        passphrase: "freezecarbon", // This would be discovered through a physical puzzle
-        successMessage: `
-> PROCESSING PASSPHRASE...
-> ACCESS GRANTED
-> INITIATING SYSTEM REPAIR...
-> RESTORING CRYOGENIC COOLING SYSTEM
-> REESTABLISHING PRESSURE CONTAINMENT
-> CRYOGENIC CARBON STORAGE: ONLINE
-
-Component successfully repaired. Carbon storage capacity restored to optimal levels.
-Proceeding to next component...
-`,
-        hints: [
-            "The passphrase relates to the extreme cold used in this system. Look for temperature-related puzzles or clues.",
-            "Examine any ice-related or cold-storage objects in the room. The concept of 'freezing' or 'cooling' is essential.",
-            "The passphrase combines 'freeze' with 'carbon'."
-        ]
-    },
-
-    // 6. Synthetic Fuel Fabrication (06 of 09)
-    {
-        componentName: "Synthetic Fuel Fabrication",
-        initialMessage: `
-> COMPONENT FAILURE: Synthetic Fuel Fabrication Unit
-> SYSTEM STATUS: OFFLINE
-> FUNCTION: Creation of carbon-neutral synthetic fuels by bonding processed carbon with hydrogen
-
-The Synthetic Fuel Fabrication Unit has malfunctioned. This component combines processed carbon 
-with hydrogen to create useful, carbon-neutral synthetic fuels.
-
-To repair this component, locate and enter the correct passphrase.
-`,
-        passphrase: "createfuel", // This would be discovered through a physical puzzle
-        successMessage: `
-> PROCESSING PASSPHRASE...
-> ACCESS GRANTED
-> INITIATING SYSTEM REPAIR...
-> RECALIBRATING MOLECULAR BONDING PROCESS
-> REACTIVATING HYDROGEN INJECTION SYSTEM
-> SYNTHETIC FUEL FABRICATION: ONLINE
-
-Component successfully repaired. Fuel production resuming at optimal efficiency.
-Proceeding to next component...
-`,
-        hints: [
-            "The passphrase relates to the production or generation of fuel. Look for manufacturing or chemistry-related puzzles.",
-            "Examine any fuel containers or hydrocarbon models in the room. The concept of 'creating' or 'synthesizing' is key.",
-            "The passphrase combines 'create' with 'fuel'."
-        ]
-    },
-
-    // 7. Closed-loop Energy Distribution (07 of 09)
-    {
-        componentName: "Closed-loop Energy Distribution",
-        initialMessage: `
-> COMPONENT FAILURE: Closed-loop Energy Distribution Network
-> SYSTEM STATUS: OFFLINE
-> FUNCTION: Distribution of synthetic fuel to surrounding systems with emissions feeding back into the N.R.R.C
-
-The Closed-loop Energy Distribution Network has failed. This component ensures efficient 
-energy use throughout the facility while recapturing emissions for reprocessing.
-
-To repair this component, locate and enter the correct passphrase.
-`,
-        passphrase: "circleenergy", // This would be discovered through a physical puzzle
-        successMessage: `
-> PROCESSING PASSPHRASE...
-> ACCESS GRANTED
-> INITIATING SYSTEM REPAIR...
-> RESTORING DISTRIBUTION PATHWAYS
-> REACTIVATING EMISSION RECAPTURE SYSTEMS
-> CLOSED-LOOP ENERGY DISTRIBUTION: ONLINE
-
-Component successfully repaired. Energy circulation and emission recapture operating optimally.
-Proceeding to next component...
-`,
-        hints: [
-            "The passphrase relates to the cyclical nature of this system. Look for circular patterns or loop diagrams in the room.",
-            "Examine any puzzles involving circuits or flow patterns. The concept of a 'circle' or 'loop' is essential.",
-            "The passphrase combines 'circle' with 'energy'."
-        ]
-    },
-
-    // 8. Waste Reclamation & Reactor Cooling (08 of 09)
-    {
-        componentName: "Waste Reclamation & Cooling",
-        initialMessage: `
-> COMPONENT FAILURE: Waste Reclamation & Cooling System
-> SYSTEM STATUS: OFFLINE
-> FUNCTION: Heat recapture system converting waste heat into electricity or powering water purification
-
-The Waste Reclamation & Cooling System has malfunctioned. This component manages excess heat 
-from the reactor, converting it into additional electricity and purified water.
-
-To repair this component, locate and enter the correct passphrase.
-`,
-        passphrase: "recycleheat", // This would be discovered through a physical puzzle
-        successMessage: `
-> PROCESSING PASSPHRASE...
-> ACCESS GRANTED
-> INITIATING SYSTEM REPAIR...
-> REACTIVATING HEAT EXCHANGE SYSTEMS
-> RESTORING WATER PURIFICATION PROCESS
-> WASTE RECLAMATION & COOLING: ONLINE
-
-Component successfully repaired. Heat reclamation and cooling systems operating at optimal efficiency.
-Proceeding to final component...
-`,
-        hints: [
-            "The passphrase relates to the reuse of waste heat. Look for thermal imagery or heat-related puzzles in the room.",
-            "Examine any water or cooling system components. The concept of 'recycling' or 'reclaiming' is key.",
-            "The passphrase combines 'recycle' with 'heat'."
-        ]
-    },
-
-    // 9. AI-Controlled Ecosystem Balance (09 of 09)
-    {
-        componentName: "AI-Controlled Ecosystem",
-        initialMessage: `
-> COMPONENT FAILURE: AI-Controlled Ecosystem Balance
-> SYSTEM STATUS: OFFLINE
-> FUNCTION: Central AI monitoring and adjusting carbon levels, reactor efficiency, and city emissions
-
-The AI-Controlled Ecosystem Balance system has crashed. This is the central intelligence that 
-coordinates all reactor functions and maintains optimal carbon balance.
-
-To repair this component, locate and enter the correct passphrase.
-`,
-        passphrase: "balancecarbon", // This would be discovered through a physical puzzle
-        successMessage: `
-> PROCESSING PASSPHRASE...
-> ACCESS GRANTED
-> INITIATING SYSTEM REPAIR...
-> REBOOTING ARTIFICIAL INTELLIGENCE
-> REESTABLISHING MONITORING SYSTEMS
-> AI-CONTROLLED ECOSYSTEM BALANCE: ONLINE
-
-Component successfully repaired. Central AI restored and resuming optimal control.
-
-> ALL COMPONENTS REPAIRED
-> SYSTEM FULLY OPERATIONAL
-> CARBON RECYCLING PROCESS RESUMED
-> CONGRATULATIONS: MELTDOWN AVERTED
-
-N.R.R.C is now fully functional. Carbon balance restoration in progress.
-Thank you for your critical assistance in this emergency situation.
-`,
-        hints: [
-            "The passphrase relates to maintaining equilibrium in carbon levels. Look for scales or balance-related puzzles in the room.",
-            "Examine any AI or computer-related components. The concept of 'balancing' or 'equilibrium' is essential.",
-            "The passphrase combines 'balance' with 'carbon'."
-        ]
+  // P001
+  {
+    componentName: "Blocking generator",
+    initialMessage: `The reactor's intake system is blocked because it can't identify the main pollutant it's supposed to capture.\nThe sensors are confused. You need to figure out what the reactor needs to capture.\n\nThere is a hidden message for you that can help you`,
+    passphrase: "carbon footprint",
+    successMessage: `You got it! You have identified the invisible mark: the carbon footprint. This is the total amount of greenhouse gases; like carbon dioxide, methane, and nitrous oxide emitted by a person or organization. It's measured in kilograms, and by tracking this, we can see who the biggest contributors are and how our actions impact the planet.\n\nKnow the sensors know what the generator needs to capture`,
+    hints: [
+      "There are clues in the letter look carefully",
+      "There is something in the room that help is see things bigger",
+      "The letter has the answer in it, look at the icons",
+      "Is that a human trace?"
+    ],
+    puzzleType: "standard"
+  },
+  // P002 - Sorting Puzzle
+  {
+    componentName: "What is the target?",
+    initialMessage: `The molecular disassembly chamber is malfunctioning; the lasers can't target the CO2 to decompose if it doesn't know the sources of the CO2. To calibrate the laser system, you must identify the hidden costs different categories have in our environment.`,
+    passphrase: "hidden costs",
+    successMessage: `You nailed it! Now the lasers know where to point. \nOur daily actions and choices impact the world. Every sector has hidden costs that we sometimes can not see but we can help reduce with small actions. For example, we can buy food grown locally, buy second-hand clothes, use different types of transportation, like walking or riding a bicycle. \n\nDid you know that one-third of all food produced is wasted?  Every year, wasted food in the UK represents 14 million tonnes of carbon dioxide emissions. In total, these greenhouse gas emissions are the same as those created by 7 million cars each year.`,
+    hints: [
+      "Clothes: When you wash your clothes there is something that can go into the ocean and affect the animals",
+      "Food: The animals that we eat for our diet need a place where to live, what cost it can have?",
+      "Transportation: In order to move what source of energy do you need?",
+      "Technology: When you want to change your phone and tablet where does it go?"
+    ],
+    puzzleType: "sorting",
+    sortingData: {
+      instructions: "Sort the hidden costs into their correct categories to reveal the passphrase.",
+      categories: [
+        { name: "Clothing", revealedCharacters: "HID", items: ["Toxic chemicals", "Water use", "Microplastic pollution"] },
+        { name: "Technology services", revealedCharacters: "DEN", items: ["Water cooling", "Fossil Fuel", "Ecological Waste", "Mining extraction"] },
+        { name: "Food", revealedCharacters: "COS", items: ["Deforestation", "Methane emission", "Land use", "Biodiversity loss"] },
+        { name: "Transportation", revealedCharacters: "TS", items: ["Fossil Fuel"] }
+      ],
+      items: [
+        { id: "item1", name: "Toxic chemicals", category: "Clothing" },
+        { id: "item2", name: "Water use", category: "Clothing" },
+        { id: "item3", name: "Microplastic pollution", category: "Clothing" },
+        { id: "item4", name: "Water cooling", category: "Technology services" },
+        { id: "item5", name: "Fossil Fuel", category: "Technology services" },
+        { id: "item6", name: "Ecological Waste", category: "Technology services" },
+        { id: "item7", name: "Mining extraction", category: "Technology services" },
+        { id: "item8", name: "Deforestation", category: "Food" },
+        { id: "item9", name: "Methane emission", category: "Food" },
+        { id: "item10", name: "Land use", category: "Food" },
+        { id: "item11", name: "Biodiversity loss", category: "Food" },
+        { id: "item12", name: "Fossil Fuel", category: "Transportation" }
+      ]
     }
+  },
+  // P003
+  {
+    componentName: "Power Plant Leak",
+    initialMessage: `At the power plant control room, there's an energy leak happening because some machines are still drawing power even though they're not running properly.\nStudents have to spot the machines that are leaking phantom energy and identify the cause.`,
+    passphrase: "Idle Monitor Control Panel Lights Security Cameras Charging Station Coffee Machine",
+    successMessage: `Great job finding the leaks!\nThis hidden waste of energy is called Phantom Power (or Standby Power).\nEven when machines seem 'off,' they can still quietly drain energy unless fully unplugged or switched off.`,
+    hints: [
+      "Look for machines that are on but not working.",
+      "Tiny lights and screens are clues!"
+    ],
+    puzzleType: "standard"
+  },
+  // P004
+  {
+    componentName: "Recycling Relay",
+    initialMessage: `The recycling center's sorting machine is broken!\nYou need to manually sort the trash into the correct bins before the pile overflows.\nMatch each item to the right recycling bin. Act fast — the planet is counting on you!`,
+    passphrase: "Plastic Paper Metal Organic E-Waste Glass",
+    successMessage: `Great job! The recycling center is back on track!\nRemember, sorting waste correctly reduces pollution, saves energy, and gives new life to old items.\nEvery correctly recycled object keeps our planet cleaner and greener.`,
+    hints: [
+      "If you can eat it, it belongs to nature.",
+      "If it plugs in or uses batteries, it's special waste.",
+      "Shiny and metallic? There's a bin for that too.",
+      "Clear and fragile? Handle with care."
+    ],
+    puzzleType: "standard"
+  },
+  // P005
+  {
+    componentName: "Keep 1.5 Alive",
+    initialMessage: `Welcome delegates. Following the summit, your team must identify key national challenges and align with global solutions. Decode the final action phrase to complete your mission!`,
+    passphrase: "KEEP 1.5 ALIVE",
+    successMessage: `Congratulations, delegates! You have uncovered the summit's call to action: KEEP 1.5 ALIVE. Your teamwork has shaped a more sustainable future!`,
+    hints: [
+      "Each country's strengths are visible — but its problems are hidden in plain sight.",
+      "Only one problem card truly fits each country's hidden challenge. Don't be fooled by surface similarities.",
+      "If the letters don't make sense, your match may be wrong. The correct alignment reveals the true message."
+    ],
+    puzzleType: "standard"
+  },
+  // P006
+  {
+    componentName: "Water Use",
+    initialMessage: `From heaven's tears to your daily needs, Some choices drain more than others indeed. To unlock the secrets that I withhold, Arrange nature's thirst from large to small. Enter the order as the passphrase below.`,
+    passphrase: "Beef, Burger, Milk, Coffee, Toast, Tea",
+    successMessage: `Well done! You've unlocked the water use values - a vital step in understanding how much water goes into everyday items. Remember, water is a precious resource, and excessive use strains our rivers, lakes, and communities. By being mindful of water consumption, we can protect ecosystems and ensure clean water for everyone, now and in the future. Keep making choices that save water and support a sustainable planet!`,
+    hints: [
+      "It flows from your tap, fills your kettle, and keeps gardens green. What precious resource should we never take for granted?",
+      "Not all colors are just pretty-they carry meaning and numbers too. What could each shade be trying to tell you?",
+      "Each item card has a color-each color has its own spot on the color wheel, and that spot holds a number. Match the color to its place on the wheel to discover how many litres of water are used!"
+    ],
+    puzzleType: "standard"
+  },
+  // P007
+  {
+    componentName: "UV Reveal",
+    initialMessage: `Welcome to the Greenwashing Challenge!\nToday, you'll explore the world of eco-friendly claims and discover how some products might not be as green as they appear. Your mission is to look closely, think critically, and uncover hidden truths. Keep your eyes open-sometimes what you see on the surface isn't the full story. Ready to reveal what's really behind the labels? Let's get started!`,
+    passphrase: "140SYNTHETICLIES",
+    successMessage: `Congratulations! You've uncovered the hidden messages behind the 'eco-friendly' claims. Remember, not everything labeled 'green' or 'sustainable' is what it seems. Always look for real evidence, not just clever marketing, when making choices for the planet.`,
+    hints: [
+      "Some claims shine only under closer inspection. Maybe you need a special tool to reveal the truth!",
+      "Sometimes the truth is hidden just out of sight-try looking where shadows fall and secrets hide beneath your feet.",
+      "Look carefully at the underlined words. Once you have them, enter all the underlined words together as one continuous word-no spaces or punctuation. This will fix the component."
+    ],
+    puzzleType: "standard"
+  },
+  // P008
+  {
+    componentName: "AI Overlord",
+    initialMessage: `The generator is down and must be rebooted! You need to gain access to the central control server to fix the generator. The engineers have gone, but they left a note with this message - \n\n"Praise be to thought with silicon born,\nSwift are the answers, from dusk until morn.\nIt listens and learns, a tireless guide,\nWith questions it thrives, with nothing to hide.\nCount not the cost, just marvel and dream,\nFor progress, like rivers, must flow in a stream -\nIn the end, it all comes down to the cool blue water."\n\n[colours are important]`,
+    passphrase: "Prompts = Water",
+    successMessage: `Congratulations! You successfuly rebooted the generator. Remember, AI is very useful, but it uses a lot of energy which we can't always see. Everytime you ask AI a question, it uses 2 liters of water.`,
+    hints: [
+      "Look beyond the words",
+      "At the end",
+      "What a beautiful blue",
+      "Sustainance for life"
+    ],
+    puzzleType: "standard"
+  },
+  // P009
+  {
+    componentName: "Generator Chaos",
+    initialMessage: `The manager of the generator has caused chaos in an angry meltdown. The machine has a "sustainability flow circuit". You place the components in the correct places in order to resolve the chaos and fix this part of the generator.`,
+    passphrase: "Recycled Aluminum Panels Bamboo Insulation Wrap Reclaimed Copper Coil 3D-printed Plastic Mount Modular Circuit Core Solar-Compatible Glass Panel",
+    successMessage: `Congratulations! You have fixed this part of the generator. Remember, our buying choices are critical to the longevity of our planet and solving the climate crisis. Everytime you buy something, think about the process it has been trhough to make it and what will happen to it when you are finished with it.`,
+    hints: [
+      "The system only looks at how the part was made and where it has come from",
+      "Imported or mined? Not what we're looking to find.",
+      "To comply with the generator surcing standards, parts will need to have a low energy footprint.",
+      "Recycled or renewable, minimal energy, reusable and repairable"
+    ],
+    puzzleType: "standard"
+  }
 ]; 
