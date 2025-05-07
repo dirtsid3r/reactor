@@ -354,7 +354,7 @@
                 
                 <div id="boot-sequence-container" class="boot-sequence-container hidden">
                     <div id="boot-text" class="terminal-text"></div>
-                    <button id="start-button" class="terminal-button">INITIALIZE SYSTEM</button>
+                    <button id="start-button" class="terminal-button" onclick="window.globalStartGame && window.globalStartGame()">INITIALIZE SYSTEM</button>
                 </div>
             </div>
         </div>
@@ -373,8 +373,8 @@
                 <div class="control-panel">
                     <!-- Tab navigation now horizontal at top -->
                     <div class="tab-bar horizontal">
-                        <div class="tab active" data-tab="reactor">Reactor</div>
-                        <div class="tab" data-tab="support">E.C.H.O</div>
+                        <div class="tab active" data-tab="reactor" onclick="window.switchTab && window.switchTab('reactor', this)">Reactor</div>
+                        <div class="tab" data-tab="support" onclick="window.switchTab && window.switchTab('support', this)">E.C.H.O</div>
                     </div>
                     
                     <div class="tab-content-container">
@@ -398,7 +398,7 @@
                             <div class="assistant-messages" id="assistant-messages"></div>
                             <div class="assistant-input-area">
                                 <input type="text" id="assistant-input" placeholder="Ask E.C.H.O. something..." autocomplete="off">
-                                <button id="assistant-submit" class="assistant-button">SEND</button>
+                                <button id="assistant-submit" class="assistant-button" onclick="window.globalHandleAssistantSubmit && window.globalHandleAssistantSubmit()">SEND</button>
                             </div>
                         </div>
                     </div>
@@ -410,7 +410,7 @@
                     <div class="terminal-display" id="terminal-display"></div>
                     <div class="terminal-input-area">
                         <input type="text" id="terminal-input" placeholder="Enter system passphrase..." autocomplete="off">
-                        <button id="terminal-submit" class="terminal-button">UPLOAD</button>
+                        <button id="terminal-submit" class="terminal-button" onclick="window.globalHandleTerminalSubmit && window.globalHandleTerminalSubmit()">UPLOAD</button>
                     </div>
                 </div>
             </div>

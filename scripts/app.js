@@ -1781,3 +1781,74 @@ function handleAssistantSubmit() {
         }
     }, 2000); // 2 second delay
 }
+
+// Global functions for direct HTML access
+// Add these at the end of the file to ensure all functions are defined
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize global function pointers for inline event handlers
+    console.log('Initializing global handler functions');
+    
+    // Global function for assistant submit
+    window.globalHandleAssistantSubmit = function() {
+        console.log('Global assistant submit called');
+        handleAssistantSubmit();
+    };
+    
+    // Global function for terminal submit
+    window.globalHandleTerminalSubmit = function() {
+        console.log('Global terminal submit called');
+        handleTerminalSubmit();
+    };
+    
+    // Global function for starting the game
+    window.globalStartGame = function() {
+        console.log('Global start game called');
+        startGame();
+    };
+    
+    // Global function for tab switching
+    window.switchTab = function(tabName, tabElement) {
+        console.log('Global tab switch called:', tabName);
+        // Update active tab
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tabElement.classList.add('active');
+        
+        // Show selected tab content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.add('hidden');
+        });
+        
+        // Find tab content and remove hidden class
+        const tabContent = document.getElementById(`${tabName}-tab`);
+        if (tabContent) {
+            tabContent.classList.remove('hidden');
+            console.log('Tab content displayed:', tabName);
+            
+            // If support tab is opened, show welcome message if empty
+            if (tabName === 'support') {
+                const assistantMessages = document.getElementById('assistant-messages');
+                if (assistantMessages && assistantMessages.childElementCount === 0) {
+                    // Show thinking indicator briefly
+                    const thinkingElement = document.createElement('div');
+                    thinkingElement.classList.add('thinking');
+                    thinkingElement.innerHTML = 'E.C.H.O. is initializing<span class="thinking-dots"></span>';
+                    assistantMessages.appendChild(thinkingElement);
+                    
+                    setTimeout(() => {
+                        // Remove thinking indicator
+                        if (thinkingElement.parentNode) {
+                            assistantMessages.removeChild(thinkingElement);
+                        }
+                        
+                        // Add welcome message
+                        addChatMessages(getEchoIntroMessages(), 'ai', 900);
+                    }, 2000);
+                }
+            }
+        } else {
+            console.error('Tab content not found:', tabName);
+        }
+    };
+    
+    console.log('Global handler functions initialized');
+});
