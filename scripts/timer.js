@@ -2,6 +2,7 @@
 let timerInterval;
 let timeLeft;
 let timerCallback;
+let lastUpdateTime = 0;
 
 // Import reference to sound manager
 let soundManager;
@@ -14,6 +15,7 @@ let soundManager;
 export function initTimer(seconds, callback) {
     timeLeft = seconds;
     timerCallback = callback;
+    lastUpdateTime = Date.now();
     
     // Get reference to the sound manager from the global scope
     if (window.soundManager) {
@@ -23,26 +25,65 @@ export function initTimer(seconds, callback) {
     // Update the countdown display
     updateTimerDisplay();
     
-    // Start the interval
+    // Clear any existing interval
+    if (timerInterval) {
+        clearInterval(timerInterval);
+    }
+    
+    // Start the interval with a precise timing mechanism
     timerInterval = setInterval(() => {
-        timeLeft--;
+        const currentTime = Date.now();
+        const elapsed = currentTime - lastUpdateTime;
         
-        // Update the display
-        updateTimerDisplay();
-        
-        // Play timer sound on each second
-        if (soundManager && timeLeft > 0) {
-            soundManager.play('timer');
-        }
-        
-        // Check if time is up
-        if (timeLeft <= 0) {
-            stopTimer();
-            if (timerCallback) {
-                timerCallback();
+        // Only update if at least 1000ms have passed
+        if (elapsed >= 1000) {
+            // Update last time
+            lastUpdateTime = currentTime;
+            
+            // Decrement time
+            timeLeft--;
+            
+            // Update the display
+            updateTimerDisplay();
+            
+            // Play timer sound on each second at 50% volume of current setting
+            if (soundManager && timeLeft > 0) {
+                // Create a temporary gain node to reduce volume just for this sound
+                if (soundManager.context) {
+                    try {
+                        const source = soundManager.context.createBufferSource();
+                        const gainNode = soundManager.context.createGain();
+                        
+                        // Use the normal timer sound buffer
+                        source.buffer = soundManager.buffers['timer'];
+                        
+                        // Set gain to 50% of normal
+                        gainNode.gain.value = 0.075; // 50% of 0.15
+                        
+                        // Connect nodes
+                        source.connect(gainNode);
+                        gainNode.connect(soundManager.masterGain);
+                        
+                        // Play the sound
+                        source.start(0);
+                    } catch (e) {
+                        // Fallback to regular play with reduced volume setting
+                        soundManager.play('timer');
+                    }
+                } else {
+                    soundManager.play('timer');
+                }
+            }
+            
+            // Check if time is up
+            if (timeLeft <= 0) {
+                stopTimer();
+                if (timerCallback) {
+                    timerCallback();
+                }
             }
         }
-    }, 1000);
+    }, 250); // Check more frequently to ensure we don't miss the second mark
 }
 
 /**

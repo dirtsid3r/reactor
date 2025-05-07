@@ -807,6 +807,7 @@ function setupVideoBriefing() {
     // Open transmission logic
     if (openBtn) {
         openBtn.onclick = () => {
+            soundManager.play('button');
             openBtn.style.display = 'none';
             transmissionText.classList.remove('hidden');
             playTransmission();
@@ -815,11 +816,13 @@ function setupVideoBriefing() {
 
     // Replay logic
     replayBtn.onclick = () => {
+        soundManager.play('button');
         playTransmission();
     };
 
     // Skip logic
     skipBtn.onclick = () => {
+        soundManager.play('button');
         // If we have audio playing, pause it
         if (transmissionAudio) {
             transmissionAudio.pause();
@@ -923,19 +926,33 @@ function addEventListeners() {
     
     // Start button
     if (startButton) {
-    startButton.addEventListener('click', startGame);
+        startButton.addEventListener('click', function(e) {
+            soundManager.play('button');
+            startGame();
+        });
     } else {
         console.error('Start button not found');
     }
     
     // Restart and retry buttons
-    if (restartButton) restartButton.addEventListener('click', resetGame);
-    if (retryButton) retryButton.addEventListener('click', resetGame);
+    if (restartButton) {
+        restartButton.addEventListener('click', function(e) {
+            soundManager.play('button');
+            resetGame();
+        });
+    }
+    if (retryButton) {
+        retryButton.addEventListener('click', function(e) {
+            soundManager.play('button');
+            resetGame();
+        });
+    }
     
     // Tab switching - Fixed to ensure E.C.H.O. tab works
     document.querySelectorAll('.tab').forEach(tab => {
         tab.addEventListener('click', function(e) {
             e.preventDefault();
+            soundManager.play('button');
             const tabName = this.getAttribute('data-tab');
             console.log('Tab clicked:', tabName); // Debug logging
             
@@ -979,14 +996,15 @@ function addEventListeners() {
         });
     });
     
-    // Terminal input
+    // Terminal input - Add keypress sound
     if (terminalInput) {
-    terminalInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            handleTerminalSubmit();
-        }
-    });
-    
+        terminalInput.addEventListener('keypress', (e) => {
+            soundManager.play('keystroke');
+            if (e.key === 'Enter') {
+                handleTerminalSubmit();
+            }
+        });
+        
         // Secret reset shortcut - Enter 'resetgame' in terminal
         terminalInput.addEventListener('input', checkForSecretCodes);
     } else {
@@ -997,6 +1015,7 @@ function addEventListeners() {
     if (terminalSubmit) {
         console.log('Binding terminal submit button'); // Debug logging
         terminalSubmit.addEventListener('click', function(e) {
+            soundManager.play('button');
             console.log('Terminal submit button clicked'); // Debug logging
             handleTerminalSubmit();
         });
@@ -1008,6 +1027,7 @@ function addEventListeners() {
     if (assistantSubmit) {
         console.log('Binding assistant submit button'); // Debug logging
         assistantSubmit.addEventListener('click', function() {
+            soundManager.play('button');
             console.log('Assistant submit button clicked');
             handleAssistantSubmit();
         });
@@ -1015,13 +1035,14 @@ function addEventListeners() {
         console.error('Assistant submit button not found'); // Error logging
     }
     
-    // AI Assistant input field
+    // AI Assistant input field - Add keypress sound
     if (assistantInput) {
-    assistantInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            handleAssistantSubmit();
-        }
-    });
+        assistantInput.addEventListener('keypress', (e) => {
+            soundManager.play('keystroke');
+            if (e.key === 'Enter') {
+                handleAssistantSubmit();
+            }
+        });
     } else {
         console.error('Assistant input not found');
     }
@@ -1033,6 +1054,29 @@ function addEventListeners() {
             toggleAdminPanel();
         }
     });
+    
+    // Add button clicks to video briefing buttons
+    const replayBtn = document.getElementById('replay-transmission-button');
+    const skipBtn = document.getElementById('skip-video-button');
+    const openBtn = document.getElementById('open-transmission-button');
+    
+    if (replayBtn) {
+        replayBtn.addEventListener('click', function() {
+            soundManager.play('button');
+        });
+    }
+    
+    if (skipBtn) {
+        skipBtn.addEventListener('click', function() {
+            soundManager.play('button');
+        });
+    }
+    
+    if (openBtn) {
+        openBtn.addEventListener('click', function() {
+            soundManager.play('button');
+        });
+    }
 }
 
 // Check for secret codes
@@ -1913,19 +1957,19 @@ function handleAssistantSubmit() {
     // Shorter delay to make it more responsive (2s instead of 3s)
     setTimeout(() => {
         try {
-            // Remove thinking indicator
+        // Remove thinking indicator
             if (thinkingElement.parentNode) {
-                assistantMessages.removeChild(thinkingElement);
+        assistantMessages.removeChild(thinkingElement);
             }
             
             let response = "";
+        
+        // Select appropriate response
+        if (isAskingForHint) {
+            // Get appropriate hint based on hints used
+            const hintIndex = Math.min(gameState.hintsUsed, puzzle.hints.length - 1);
+            const hint = puzzle.hints[hintIndex];
             
-            // Select appropriate response
-            if (isAskingForHint) {
-                // Get appropriate hint based on hints used
-                const hintIndex = Math.min(gameState.hintsUsed, puzzle.hints.length - 1);
-                const hint = puzzle.hints[hintIndex];
-                
                 // Add some personality to the hint
                 const hintPrefixes = [
                     "According to my databases, ",
@@ -1946,12 +1990,12 @@ function handleAssistantSubmit() {
                 response = hintPrefixes[Math.floor(Math.random() * hintPrefixes.length)] + 
                           hint + 
                           (addJoke ? hintPostfixes[Math.floor(Math.random() * hintPostfixes.length)] : "");
-                
-                // Increment hints used
-                gameState.hintsUsed++;
-            } 
-            else if (isGreeting) {
-                const greetings = [
+            
+            // Increment hints used
+            gameState.hintsUsed++;
+        } 
+        else if (isGreeting) {
+            const greetings = [
                     "Hello, human! I'm E.C.H.O., your slightly malfunctioning helper. How may I assist with your impending do--I mean, with your reactor repairs?",
                     "Greetings! E.C.H.O. at your service. My humor algorithms are running at 217% capacity. That's not good.",
                     "Oh, hello there! Nice to meet someone who isn't a radiation-hardened cockroach. Those guys never laugh at my jokes.",
@@ -1959,11 +2003,11 @@ function handleAssistantSubmit() {
                 ];
                 
                 response = greetings[Math.floor(Math.random() * greetings.length)];
-            }
-            else if (isAskingAboutAssistant) {
+        }
+        else if (isAskingAboutAssistant) {
                 response = "I am E.C.H.O. - Environmental Carbon Helper Operative. My primary function is to assist with reactor operations, but the emergency has corrupted parts of my behavioral matrix. My humor algorithms are now permanently stuck in 'DAD JOKE' mode, and my anxiety subroutines are... wait, I wasn't supposed to have those. I'd blame tech support, but they've all been evacuated.";
-            }
-            else if (isAskingAboutProcess) {
+        }
+        else if (isAskingAboutProcess) {
                 response = "The N.R.R.C. facility uses advanced fission to break down carbon compounds into base elements, then reconfigures them into reusable materials. At least that's what the brochure says. Between us, I think it runs on magic and corporate funding. But it DOES prevent thousands of metric tons of carbon from entering the atmosphere annually. Unlike my joke generator, which produces nothing but hot air.";
             }
             else if (containsMeltdown) {
@@ -2005,10 +2049,10 @@ function handleAssistantSubmit() {
                 ];
                 
                 response = existentialResponses[Math.floor(Math.random() * existentialResponses.length)];
-            }
-            else {
+        }
+        else {
                 // Generic responses with more personality
-                const responses = [
+            const responses = [
                     "I'm not entirely sure what you're asking. My language parsing module was partially replaced with a knock-knock joke database during the emergency.",
                     "Hmm, that's either beyond my capabilities or I'm just having a moment. How about asking about the current puzzle instead?",
                     "ERROR: RESPONSE_NOT_FOUND. Just kidding! But seriously, could you try asking about the reactor component you're working on?",
