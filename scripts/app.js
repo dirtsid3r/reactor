@@ -592,67 +592,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initGame();
     addEventListeners();
     setupAdminPanel();
-    
-    // Debug sound loading status in the UI
-    window.debugSounds = function() {
-        console.log('Checking sound loading status...');
-        const results = document.createElement('div');
-        results.style.position = 'fixed';
-        results.style.bottom = '10px';
-        results.style.right = '10px';
-        results.style.backgroundColor = 'rgba(0,0,0,0.8)';
-        results.style.color = '#0f0';
-        results.style.padding = '10px';
-        results.style.fontFamily = 'monospace';
-        results.style.zIndex = '9999';
-        results.style.maxHeight = '200px';
-        results.style.overflow = 'auto';
-        results.style.fontSize = '12px';
-        
-        let html = '<h3>Sound Loading Status</h3><ul>';
-        for (const [key, src] of Object.entries(soundFiles)) {
-            const audio = soundManager.sounds[key];
-            html += `<li>${key}: ${src}<br>`;
-            html += `Loaded: ${audio ? 'Yes' : 'No'}, `;
-            if (audio) {
-                html += `Ready: ${audio.readyState}, `;
-                html += `Error: ${audio.error ? audio.error.code : 'None'}`;
-                // Try to play a test version
-                const test = new Audio(src + '?test=' + Date.now());
-                test.volume = 0;
-                test.muted = true;
-                test.oncanplay = () => {
-                    const li = results.querySelector(`li[data-key="${key}"]`);
-                    if (li) li.innerHTML += ' <span style="color:#0f0">✓ Works</span>';
-                };
-                test.onerror = () => {
-                    const li = results.querySelector(`li[data-key="${key}"]`);
-                    if (li) li.innerHTML += ' <span style="color:#f00">✗ Error</span>';
-                };
-                test.load();
-            }
-            html += '</li>';
-        }
-        html += '</ul>';
-        html += '<button onclick="this.parentNode.remove()">Close</button>';
-        results.innerHTML = html;
-        document.body.appendChild(results);
-        
-        // Tag each item
-        results.querySelectorAll('li').forEach((li, idx) => {
-            li.setAttribute('data-key', Object.keys(soundFiles)[idx]);
-        });
-    };
-    
-    // Add debug button to the terminal
-    const debugBtn = document.createElement('button');
-    debugBtn.textContent = 'Debug Sounds';
-    debugBtn.className = 'terminal-button';
-    debugBtn.style.position = 'fixed';
-    debugBtn.style.bottom = '10px';
-    debugBtn.style.right = '10px';
-    debugBtn.addEventListener('click', window.debugSounds);
-    document.body.appendChild(debugBtn);
 });
 
 // Load saved puzzles from localStorage if available
@@ -1623,21 +1562,115 @@ function loadPuzzle(index) {
     const puzzle = gameState.editedPuzzles[index];
     // Clear the terminal
     clearTerminal();
-    // Type the puzzle message in the terminal (restore typewriter effect)
-    typeInTerminal(document.getElementById('terminal-display'), puzzle.initialMessage, 10, () => {
-        // After displaying the initial message, check if this is a sorting puzzle
-        if (puzzle.puzzleType === 'sorting') {
-            // Initialize sorting puzzle
-            initSortingPuzzle(puzzle.sortingData, () => {
-                // Callback for when puzzle is completed - not used currently,
-                // as the user still needs to enter the passphrase
-            });
-        }
+    
+    // Add immersive system messages before displaying the puzzle
+    const systemMessages = [
+        `> ACCESSING COMPONENT: ${puzzle.componentName.toUpperCase()}`,
+        `> ANALYZING DAMAGE PATTERNS...`,
+        `> ESTABLISHING SECURE CONNECTION...`,
+        `> CONNECTION ESTABLISHED`,
+        `> REPAIR MODE INITIATED`,
+        `> REACTOR INTEGRITY: ${Math.floor((index / gameState.totalPuzzles) * 100)}%`
+    ];
+    
+    // Display system messages with a typewriter effect
+    displaySystemMessages(systemMessages, () => {
+        // After system messages, show the actual puzzle message
+        typeInTerminal(document.getElementById('terminal-display'), puzzle.initialMessage, 10, () => {
+            // After displaying the initial message, check if this is a sorting puzzle
+            if (puzzle.puzzleType === 'sorting') {
+                // Initialize sorting puzzle
+                initSortingPuzzle(puzzle.sortingData, () => {
+                    // Callback for when puzzle is completed - not used currently,
+                    // as the user still needs to enter the passphrase
+                });
+            }
+            
+            // Start periodic system messages for immersion
+            startPeriodicSystemMessages();
+        });
     });
+    
     // Update reactor status to set active component
     updateReactorStatus(index - 1, index);
     // Focus on the terminal input
     terminalInput.focus();
+}
+
+// Display a series of system messages with typewriter effect
+function displaySystemMessages(messages, callback) {
+    if (!messages || messages.length === 0) {
+        if (callback) callback();
+        return;
+    }
+    
+    let index = 0;
+    
+    function displayNext() {
+        if (index < messages.length) {
+            appendToTerminalWithFormatting(`\n<span class="system-text">${messages[index]}</span>`);
+            index++;
+            setTimeout(displayNext, 300); // Show each message with a short delay
+        } else {
+            // Add a blank line after system messages
+            appendToTerminalWithFormatting('\n');
+            if (callback) callback();
+        }
+    }
+    
+    displayNext();
+}
+
+// Periodic system messages timer
+let periodicMessagesTimer = null;
+
+// Start showing periodic system messages
+function startPeriodicSystemMessages() {
+    // Clear any existing timer
+    if (periodicMessagesTimer) {
+        clearInterval(periodicMessagesTimer);
+    }
+    
+    // Set a new timer to show messages every 20-40 seconds
+    periodicMessagesTimer = setInterval(() => {
+        // Only show messages if the game is active
+        if (!gameState.isGameActive) return;
+        
+        // Random system messages for immersion
+        const messages = [
+            "> MONITORING CORE TEMPERATURE...",
+            "> NEUTRON FLUX STABLE",
+            "> SCANNING FOR CONTAINMENT BREACHES...",
+            "> CARBON FILTERS OPERATING AT REDUCED CAPACITY",
+            "> RUNNING DIAGNOSTIC SEQUENCE",
+            "> WARNING: COOLING SYSTEM REQUIRES ATTENTION",
+            `> CURRENT COMPONENT: ${gameState.editedPuzzles[gameState.currentPuzzle].componentName.toUpperCase()}`,
+            "> SYSTEM TIME SYNCED WITH ATOMIC CLOCK",
+            "> RADIATION LEVELS WITHIN ACCEPTABLE PARAMETERS",
+            `> ESTIMATED TIME TO CRITICAL: ${getTimeRemaining()}`,
+            "> EMERGENCY PROTOCOL ACTIVE: MANUAL OVERRIDE MODE",
+            "> NEARBY PERSONNEL COUNT: 1",
+            "> BACKUP SYSTEMS OFFLINE",
+            "> DATA INTEGRITY CHECK: PASSED",
+            "> NETWORK CONNECTIVITY LIMITED",
+            `> REACTOR INTEGRITY: ${Math.floor((gameState.currentPuzzle / gameState.totalPuzzles) * 100)}%`
+        ];
+        
+        // Pick a random message
+        const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+        
+        // Display the message
+        appendToTerminalWithFormatting(`\n<span class="system-text">${randomMessage}</span>`);
+        
+    }, Math.random() * 20000 + 20000); // Random interval between 20-40 seconds
+}
+
+// Stop periodic system messages
+function stopPeriodicSystemMessages() {
+    if (periodicMessagesTimer) {
+        clearInterval(periodicMessagesTimer);
+        periodicMessagesTimer = null;
+    }
 }
 
 // Helper to append normal or system text to terminal
@@ -1697,19 +1730,39 @@ function gameOver(success) {
     // Stop the timer
     stopTimer();
     
-    // Hide main screen
-    mainScreen.classList.add('hidden');
+    // Stop periodic system messages
+    stopPeriodicSystemMessages();
     
+    // Add a final system message based on success or failure
     if (success) {
-        // Show success screen
-        successScreen.classList.remove('hidden');
-        
-        // Update remaining time
-        remainingTimeElement.textContent = getTimeRemaining();
+        appendToTerminalWithFormatting('\n\n<span class="system-text">&gt; REACTOR STABILIZED</span>');
+        appendToTerminalWithFormatting('\n<span class="system-text">&gt; ALL SYSTEMS OPERATIONAL</span>');
+        appendToTerminalWithFormatting('\n<span class="system-text">&gt; CARBON RECYCLING PROCESS RESUMING</span>');
+        appendToTerminalWithFormatting('\n<span class="system-text">&gt; EVACUATION ORDER LIFTED</span>');
+        appendToTerminalWithFormatting('\n<span class="system-text">&gt; MISSION ACCOMPLISHED</span>');
     } else {
-        // Show failure screen
-        failureScreen.classList.remove('hidden');
+        appendToTerminalWithFormatting('\n\n<span class="system-text">&gt; CRITICAL FAILURE IMMINENT</span>');
+        appendToTerminalWithFormatting('\n<span class="system-text">&gt; CONTAINMENT BREACH DETECTED</span>');
+        appendToTerminalWithFormatting('\n<span class="system-text">&gt; EVACUATE IMMEDIATELY</span>');
+        appendToTerminalWithFormatting('\n<span class="system-text">&gt; MISSION FAILED</span>');
     }
+    
+    // Delay showing the final screen to let users read the terminal messages
+    setTimeout(() => {
+        // Hide main screen
+        mainScreen.classList.add('hidden');
+        
+        if (success) {
+            // Show success screen
+            successScreen.classList.remove('hidden');
+            
+            // Update remaining time
+            remainingTimeElement.textContent = getTimeRemaining();
+        } else {
+            // Show failure screen
+            failureScreen.classList.remove('hidden');
+        }
+    }, 3000); // 3 second delay before showing final screen
 }
 
 // Handle terminal submit
