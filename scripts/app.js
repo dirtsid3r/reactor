@@ -140,8 +140,13 @@ const soundManager = {
     humInstance: null,
     unlocked: false,
     load() {
+        console.log('Loading sound files...');
         for (const [key, src] of Object.entries(soundFiles)) {
+            console.log(`Loading sound: ${key} from ${src}`);
             const audio = new Audio(src);
+            audio.onerror = (e) => {
+                console.error(`Failed to load sound ${key} from ${src}:`, e);
+            };
             if (key === 'hum') {
                 audio.loop = true;
                 audio.volume = 0.18;
@@ -168,7 +173,17 @@ const soundManager = {
                 this.humInstance = this.sounds.hum.cloneNode();
                 this.humInstance.loop = true;
                 this.humInstance.volume = this.sounds.hum.volume;
-                this.humInstance.play().catch(e => console.warn('Hum play failed:', e));
+                this.humInstance.play().catch(e => {
+                    console.warn('Hum play failed:', e);
+                    // Try reloading the audio
+                    setTimeout(() => {
+                        const newHum = new Audio(soundFiles.hum + '?t=' + Date.now());
+                        newHum.loop = true;
+                        newHum.volume = this.sounds.hum.volume;
+                        newHum.play().catch(err => console.error('Retry hum failed:', err));
+                        this.humInstance = newHum;
+                    }, 1000);
+                });
             } else if (this.humInstance.paused) {
                 this.humInstance.play().catch(e => console.warn('Hum play failed:', e));
             }
@@ -177,7 +192,13 @@ const soundManager = {
         if (this.sounds[key]) {
             const sfx = this.sounds[key].cloneNode();
             sfx.volume = this.sounds[key].volume;
-            sfx.play().catch(e => console.warn(`Sound ${key} play failed:`, e));
+            sfx.play().catch(e => {
+                console.warn(`Sound ${key} play failed:`, e);
+                // Try reloading the audio with cache busting
+                const newSfx = new Audio(soundFiles[key] + '?t=' + Date.now());
+                newSfx.volume = this.sounds[key].volume;
+                newSfx.play().catch(err => console.error(`Retry ${key} failed:`, err));
+            });
         }
     },
     stopHum() {
@@ -198,10 +219,20 @@ soundManager.load();
 // Unlock audio on first user interaction
 function unlockAudioOnce() {
     if (!soundManager.unlocked) {
-        soundManager.unlockAll();
-        appendToTerminalWithFormatting('\n<span class="system-text">&gt; AUDIO UNLOCKED</span>');
-        // Fallback: retry hum after 2s if not playing
-        setTimeout(() => { soundManager.play('hum'); }, 2000);
+        console.log('Attempting to unlock audio...');
+        // Create and play a silent audio to unlock audio context
+        const silentAudio = new Audio("data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABGgD///////////////////////////////////////////8AAAA8TEFNRTMuMTAwAQAAAAAAAAAAABSAJAaWQgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sQZAAP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV");
+        silentAudio.play().then(() => {
+            console.log('Audio unlocked successfully!');
+            soundManager.unlockAll();
+            appendToTerminalWithFormatting('\n<span class="system-text">&gt; AUDIO UNLOCKED</span>');
+            // Fallback: retry hum after 2s if not playing
+            setTimeout(() => { soundManager.play('hum'); }, 2000);
+        }).catch(e => {
+            console.warn('Silent audio unlock failed:', e);
+            // Try manual unlock anyway
+            soundManager.unlockAll();
+        });
     }
     window.removeEventListener('click', unlockAudioOnce);
     window.removeEventListener('keydown', unlockAudioOnce);
@@ -216,6 +247,67 @@ document.addEventListener('DOMContentLoaded', () => {
     initGame();
     addEventListeners();
     setupAdminPanel();
+    
+    // Debug sound loading status in the UI
+    window.debugSounds = function() {
+        console.log('Checking sound loading status...');
+        const results = document.createElement('div');
+        results.style.position = 'fixed';
+        results.style.bottom = '10px';
+        results.style.right = '10px';
+        results.style.backgroundColor = 'rgba(0,0,0,0.8)';
+        results.style.color = '#0f0';
+        results.style.padding = '10px';
+        results.style.fontFamily = 'monospace';
+        results.style.zIndex = '9999';
+        results.style.maxHeight = '200px';
+        results.style.overflow = 'auto';
+        results.style.fontSize = '12px';
+        
+        let html = '<h3>Sound Loading Status</h3><ul>';
+        for (const [key, src] of Object.entries(soundFiles)) {
+            const audio = soundManager.sounds[key];
+            html += `<li>${key}: ${src}<br>`;
+            html += `Loaded: ${audio ? 'Yes' : 'No'}, `;
+            if (audio) {
+                html += `Ready: ${audio.readyState}, `;
+                html += `Error: ${audio.error ? audio.error.code : 'None'}`;
+                // Try to play a test version
+                const test = new Audio(src + '?test=' + Date.now());
+                test.volume = 0;
+                test.muted = true;
+                test.oncanplay = () => {
+                    const li = results.querySelector(`li[data-key="${key}"]`);
+                    if (li) li.innerHTML += ' <span style="color:#0f0">✓ Works</span>';
+                };
+                test.onerror = () => {
+                    const li = results.querySelector(`li[data-key="${key}"]`);
+                    if (li) li.innerHTML += ' <span style="color:#f00">✗ Error</span>';
+                };
+                test.load();
+            }
+            html += '</li>';
+        }
+        html += '</ul>';
+        html += '<button onclick="this.parentNode.remove()">Close</button>';
+        results.innerHTML = html;
+        document.body.appendChild(results);
+        
+        // Tag each item
+        results.querySelectorAll('li').forEach((li, idx) => {
+            li.setAttribute('data-key', Object.keys(soundFiles)[idx]);
+        });
+    };
+    
+    // Add debug button to the terminal
+    const debugBtn = document.createElement('button');
+    debugBtn.textContent = 'Debug Sounds';
+    debugBtn.className = 'terminal-button';
+    debugBtn.style.position = 'fixed';
+    debugBtn.style.bottom = '10px';
+    debugBtn.style.right = '10px';
+    debugBtn.addEventListener('click', window.debugSounds);
+    document.body.appendChild(debugBtn);
 });
 
 // Load saved puzzles from localStorage if available
@@ -280,28 +372,57 @@ function setupVideoBriefing() {
         transmissionText.classList.remove('hidden');
         replayBtn.style.display = 'none';
         skipBtn.style.display = 'inline-block';
-        transmissionAudio.currentTime = 0;
-        // Try to play audio, fallback to text if error
-        transmissionAudio.play().catch(e => {
-            console.error('Audio play failed:', e);
-            transmissionText.textContent = 'TRANSMISSION AUDIO FAILED TO PLAY. Displaying text only.';
-            transmissionText.classList.remove('hidden');
-        });
-        transmissionAudio.style.display = 'none';
-        let fallbackTimeout = setTimeout(() => {
-            if (transmissionText.textContent === '') {
-                transmissionText.textContent = transmissionScript;
-                transmissionText.classList.remove('hidden');
-                console.warn('Audio metadata never loaded, showing text fallback.');
+        
+        // Set a flag to track if we've already displayed the text
+        let textDisplayed = false;
+        
+        // Always display the text after a short delay, regardless of audio
+        setTimeout(() => {
+            if (!textDisplayed) {
+                console.log('Displaying text anyway as fallback');
+                textDisplayed = true;
+                // Start the typewriter effect with the text
+                startTypewriter();
             }
-        }, 5000);
-        typewriterSyncToAudio(transmissionScript, transmissionText, transmissionAudio, () => {
-            clearTimeout(fallbackTimeout);
-            replayBtn.style.display = 'inline-block';
-            // Remove cursor at end
-            const cursor = transmissionText.querySelector('.terminal-cursor');
-            if (cursor) cursor.remove();
-        });
+        }, 1000);
+        
+        // Function to start typewriter
+        function startTypewriter() {
+            // Clear any existing text first
+            if (transmissionText.textContent.includes('FAILED')) {
+                transmissionText.textContent = '';
+            }
+            
+            // Simple typewriter effect
+            let idx = 0;
+            const chars = transmissionScript.split('');
+            const interval = setInterval(() => {
+                if (idx < chars.length) {
+                    transmissionText.textContent += chars[idx];
+                    idx++;
+                    // Auto-scroll
+                    transmissionText.scrollTop = transmissionText.scrollHeight;
+                } else {
+                    clearInterval(interval);
+                    replayBtn.style.display = 'inline-block';
+                }
+            }, 30);
+        }
+        
+        // Try to play audio, but we'll show text regardless
+        transmissionAudio.currentTime = 0;
+        const playPromise = transmissionAudio.play();
+        
+        if (playPromise !== undefined) {
+            playPromise.catch(e => {
+                console.error('Audio play failed:', e);
+                transmissionText.textContent = 'TRANSMISSION AUDIO FAILED TO PLAY. Displaying text only.';
+                if (!textDisplayed) {
+                    textDisplayed = true;
+                    startTypewriter();
+                }
+            });
+        }
     }
 
     // Open transmission logic
@@ -320,8 +441,18 @@ function setupVideoBriefing() {
 
     // Skip logic
     skipBtn.onclick = () => {
-        transmissionAudio.pause();
-        transmissionAudio.currentTime = 0;
+        // If we have audio playing, pause it
+        if (transmissionAudio) {
+            transmissionAudio.pause();
+            transmissionAudio.currentTime = 0;
+        }
+        
+        // Clear any intervals that might be running the typewriter
+        for (let i = 1; i < 10000; i++) {
+            clearInterval(i);
+        }
+        
+        // Show the boot sequence
         showBootSequence();
     };
 
@@ -1178,6 +1309,7 @@ function handleAssistantSubmit() {
         const isGreeting = lowerInput.includes('hello') || lowerInput.includes('hi') || lowerInput.includes('hey') || lowerInput === 'hello' || lowerInput === 'hi';
         const isAskingAboutAssistant = lowerInput.includes('who are you') || lowerInput.includes('what are you') || lowerInput.includes('your name') || lowerInput.includes('about you');
         const isAskingAboutProcess = lowerInput.includes('carbon') || lowerInput.includes('nuclear') || lowerInput.includes('recycling') || lowerInput.includes('how does this work') || lowerInput.includes('what is this');
+        const isAskingAboutReactor = lowerInput.includes('reactor') || lowerInput.includes('nuclear') || lowerInput.includes('carbon') || lowerInput.includes('carbon dioxide') || lowerInput.includes('fuel');
         const isThanking = lowerInput.includes('thank') || lowerInput.includes('thanks') || lowerInput.includes('thx');
         const isCommentingOnAI = lowerInput.includes('ai') || lowerInput.includes('robot') || lowerInput.includes('chatbot') || lowerInput.includes('assistant') || lowerInput.includes('smart');
         const isAskingObvious = lowerInput.includes('what is your purpose') || lowerInput.includes('meaning of life') || lowerInput.includes('are you alive') || lowerInput.includes('are you human');
@@ -1203,6 +1335,11 @@ function handleAssistantSubmit() {
             addChatMessages([
                 "The N.R.R.C. uses advanced nuclear carbon recycling to convert atmospheric CO₂ into synthetic fuels.",
                 "Your task is to restore the reactor and resume this process before critical failure."
+            ], 'ai', 900);
+        } else if (isAskingAboutReactor) {
+            addChatMessages([
+                "The reactor is the heart of the facility. It's responsible for converting atmospheric CO₂ into synthetic fuels.",
+                "Restoring the reactor is crucial for resuming the carbon recycling process."
             ], 'ai', 900);
         } else if (isThanking) {
             addChatMessages([
