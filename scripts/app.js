@@ -809,7 +809,7 @@ function typewriterSyncToAudio(text, targetElem, audioElem, onDone) {
     let idx = 0;
     targetElem.textContent = '';
     // Slightly slower audio
-    if (audioElem) audioElem.playbackRate = 1.2;
+    if (audioElem) audioElem.playbackRate = 1.3;
     function typeNext() {
         if (idx < totalChars) {
             // Remove old cursor
