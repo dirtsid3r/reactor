@@ -334,10 +334,7 @@ const soundManager = {
                                 const objectUrl = URL.createObjectURL(blob);
                                 const newSfx = new Audio(objectUrl);
                                 newSfx.volume = this.sounds[key].volume;
-                                newSfx.play().catch(err => {
-                                    console.error(`Retry ${key} via blob failed:`, err);
-                                    addDebugInfo(`Retry ${key} via blob failed: ${err.message}`);
-                                });
+                                newSfx.play().catch(err => console.error(`Retry ${key} via blob failed:`, err));
                             })
                             .catch(error => {
                                 console.error(`Fetch for ${key} failed:`, error);
@@ -400,6 +397,40 @@ window.addEventListener('keydown', unlockAudioOnce);
 
 // Initialize the game
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOMContentLoaded event fired');
+    
+    // Re-define DOM element references to ensure they're properly captured
+    // Core elements
+    const startupScreen = document.getElementById('startup-screen');
+    const mainScreen = document.getElementById('main-screen');
+    const successScreen = document.getElementById('success-screen');
+    const failureScreen = document.getElementById('failure-screen');
+    const bootText = document.getElementById('boot-text');
+    const startButton = document.getElementById('start-button');
+    const restartButton = document.getElementById('restart-button');
+    const retryButton = document.getElementById('retry-button');
+    const currentPuzzleElement = document.getElementById('current-puzzle');
+    const totalPuzzlesElement = document.getElementById('total-puzzles');
+    const remainingTimeElement = document.getElementById('remaining-time');
+    const reactorPercentage = document.getElementById('reactor-percentage');
+    const tabs = document.querySelectorAll('.tab');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    // Terminal elements
+    const terminalInput = document.getElementById('terminal-input');
+    const terminalSubmit = document.getElementById('terminal-submit');
+
+    // AI Assistant elements
+    const assistantInput = document.getElementById('assistant-input');
+    const assistantSubmit = document.getElementById('assistant-submit');
+    const assistantMessages = document.getElementById('assistant-messages');
+    
+    // Log to validate DOM elements
+    console.log('DOM Elements detected:');
+    console.log('- Terminal Submit:', terminalSubmit ? 'Found' : 'Missing');
+    console.log('- Assistant Submit:', assistantSubmit ? 'Found' : 'Missing');
+    console.log('- E.C.H.O. Tab:', document.querySelector('.tab[data-tab="support"]') ? 'Found' : 'Missing');
+    
     // Don't play hum until unlocked by user interaction
     loadSavedPuzzles();
     initGame();
@@ -688,17 +719,35 @@ function startBootSequence() {
 
 // Add event listeners
 function addEventListeners() {
+    console.log('Setting up event listeners');
+    
+    // Get fresh references to all needed elements
+    const startButton = document.getElementById('start-button');
+    const restartButton = document.getElementById('restart-button');
+    const retryButton = document.getElementById('retry-button');
+    const terminalInput = document.getElementById('terminal-input');
+    const terminalSubmit = document.getElementById('terminal-submit');
+    const assistantInput = document.getElementById('assistant-input');
+    const assistantSubmit = document.getElementById('assistant-submit');
+    const assistantMessages = document.getElementById('assistant-messages');
+    
     // Start button
-    startButton.addEventListener('click', startGame);
+    if (startButton) {
+        startButton.addEventListener('click', startGame);
+    } else {
+        console.error('Start button not found');
+    }
     
     // Restart and retry buttons
-    restartButton.addEventListener('click', resetGame);
-    retryButton.addEventListener('click', resetGame);
+    if (restartButton) restartButton.addEventListener('click', resetGame);
+    if (retryButton) retryButton.addEventListener('click', resetGame);
     
-    // Tab switching
+    // Tab switching - Fixed to ensure E.C.H.O. tab works
     document.querySelectorAll('.tab').forEach(tab => {
-        tab.addEventListener('click', function() {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
             const tabName = this.getAttribute('data-tab');
+            console.log('Tab clicked:', tabName); // Debug logging
             
             // If already active, do nothing
             if (this.classList.contains('active')) return;
@@ -711,10 +760,18 @@ function addEventListeners() {
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.add('hidden');
             });
-            document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+            
+            // Find tab content and remove hidden class
+            const tabContent = document.getElementById(`${tabName}-tab`);
+            if (tabContent) {
+                tabContent.classList.remove('hidden');
+                console.log('Tab content displayed:', tabName); // Debug logging
+            } else {
+                console.error('Tab content not found:', tabName); // Error logging
+            }
             
             // If support tab is opened, show welcome message if empty
-            if (tabName === 'support' && document.getElementById('assistant-messages').childElementCount === 0) {
+            if (tabName === 'support' && assistantMessages && assistantMessages.childElementCount === 0) {
                 // Show thinking indicator briefly
                 const thinkingElement = document.createElement('div');
                 thinkingElement.classList.add('thinking');
@@ -733,22 +790,51 @@ function addEventListeners() {
     });
     
     // Terminal input
-    terminalInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
+    if (terminalInput) {
+        terminalInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleTerminalSubmit();
+            }
+        });
+        
+        // Secret reset shortcut - Enter 'resetgame' in terminal
+        terminalInput.addEventListener('input', checkForSecretCodes);
+    } else {
+        console.error('Terminal input not found');
+    }
+    
+    // Terminal submit button - Fixed with proper reference and error handling
+    if (terminalSubmit) {
+        console.log('Binding terminal submit button'); // Debug logging
+        terminalSubmit.addEventListener('click', function(e) {
+            console.log('Terminal submit button clicked'); // Debug logging
             handleTerminalSubmit();
-        }
-    });
+        });
+    } else {
+        console.error('Terminal submit button not found'); // Error logging
+    }
     
-    // Terminal submit button
-    terminalSubmit.addEventListener('click', handleTerminalSubmit);
-    
-    // AI Assistant submit button
-    assistantSubmit.addEventListener('click', handleAssistantSubmit);
-    assistantInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
+    // AI Assistant submit button - Fixed event binding
+    if (assistantSubmit) {
+        console.log('Binding assistant submit button'); // Debug logging
+        assistantSubmit.addEventListener('click', function() {
+            console.log('Assistant submit button clicked');
             handleAssistantSubmit();
-        }
-    });
+        });
+    } else {
+        console.error('Assistant submit button not found'); // Error logging
+    }
+    
+    // AI Assistant input field
+    if (assistantInput) {
+        assistantInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleAssistantSubmit();
+            }
+        });
+    } else {
+        console.error('Assistant input not found');
+    }
     
     // Admin panel toggle shortcut - Alt+A
     document.addEventListener('keydown', (e) => {
@@ -757,9 +843,6 @@ function addEventListeners() {
             toggleAdminPanel();
         }
     });
-
-    // Secret reset shortcut - Enter 'resetgame' in terminal
-    terminalInput.addEventListener('input', checkForSecretCodes);
 }
 
 // Check for secret codes
@@ -1555,25 +1638,54 @@ function addChatMessages(messages, sender, delay = 300) {
 
 // Add a message to the AI chat
 function addMessageToChat(message, sender) {
+    console.log(`Adding ${sender} message to chat:`, message.substring(0, 30) + (message.length > 30 ? '...' : ''));
+    
+    // Get fresh reference to messages container
+    const assistantMessages = document.getElementById('assistant-messages');
+    if (!assistantMessages) {
+        console.error('Assistant messages container not found');
+        return;
+    }
+    
     const messageElement = document.createElement('div');
     messageElement.classList.add('message');
     messageElement.classList.add(sender === 'user' ? 'user-message' : 'ai-message');
     messageElement.textContent = message;
     
-    assistantMessages.appendChild(messageElement);
-    assistantMessages.scrollTop = assistantMessages.scrollHeight;
-    
-    // Play hint sound if it's an AI message
-    if (sender === 'ai') {
-        soundManager.play('hint');
+    try {
+        assistantMessages.appendChild(messageElement);
+        assistantMessages.scrollTop = assistantMessages.scrollHeight;
+        
+        // Play hint sound if it's an AI message
+        if (sender === 'ai') {
+            soundManager.play('hint');
+        }
+    } catch (error) {
+        console.error('Error adding message to chat:', error);
     }
 }
 
 // Handle AI assistant submit
 function handleAssistantSubmit() {
+    console.log('handleAssistantSubmit called');
+    
+    // Get fresh references
+    const assistantInput = document.getElementById('assistant-input');
+    const assistantMessages = document.getElementById('assistant-messages');
+    
+    if (!assistantInput || !assistantMessages) {
+        console.error('Assistant elements not found:', {
+            input: !!assistantInput,
+            messages: !!assistantMessages
+        });
+        return;
+    }
+    
     const userInput = assistantInput.value.trim();
     
     if (userInput === '') return;
+    
+    console.log('Processing assistant input:', userInput);
     
     // Add user message to chat
     addMessageToChat(userInput, 'user');
@@ -1601,57 +1713,71 @@ function handleAssistantSubmit() {
     const isCommentingOnAI = /\b(ai|artificial|intelligence|robot|bot|computer)\b/i.test(input);
     const isAskingObvious = /\b(life|alive|human|real|purpose|meaning)\b/i.test(input);
     
-    // Shorter delay to make it more responsive (3s instead of 10s)
+    // Shorter delay to make it more responsive (2s instead of 3s)
     setTimeout(() => {
-        // Remove thinking indicator
-        assistantMessages.removeChild(thinkingElement);
-        
-        // Select appropriate response
-        if (isAskingForHint) {
-            // Get appropriate hint based on hints used
-            const hintIndex = Math.min(gameState.hintsUsed, puzzle.hints.length - 1);
-            const hint = puzzle.hints[hintIndex];
+        try {
+            // Remove thinking indicator
+            if (thinkingElement.parentNode) {
+                assistantMessages.removeChild(thinkingElement);
+            }
             
-            // Add AI message with hint
-            addMessageToChat(hint, 'ai');
-            
-            // Increment hints used
-            gameState.hintsUsed++;
-        } 
-        else if (isGreeting) {
-            const greetings = [
-                "Hello! I'm E.C.H.O., your Environmental Carbon Helper Operative. How can I assist with the reactor today?",
-                "Greetings! E.C.H.O. at your service. Need a hint?",
-                "Hi there! I'm here to help you save the facility. Need assistance?"
-            ];
-            
-            addMessageToChat(greetings[Math.floor(Math.random() * greetings.length)], 'ai');
+            // Select appropriate response
+            if (isAskingForHint) {
+                // Get appropriate hint based on hints used
+                const hintIndex = Math.min(gameState.hintsUsed, puzzle.hints.length - 1);
+                const hint = puzzle.hints[hintIndex];
+                
+                // Add AI message with hint
+                addMessageToChat(hint, 'ai');
+                
+                // Increment hints used
+                gameState.hintsUsed++;
+            } 
+            else if (isGreeting) {
+                const greetings = [
+                    "Hello! I'm E.C.H.O., your Environmental Carbon Helper Operative. How can I assist with the reactor today?",
+                    "Greetings! E.C.H.O. at your service. Need a hint?",
+                    "Hi there! I'm here to help you save the facility. Need assistance?"
+                ];
+                
+                addMessageToChat(greetings[Math.floor(Math.random() * greetings.length)], 'ai');
+            }
+            else if (isAskingAboutAssistant) {
+                addMessageToChat("I am E.C.H.O. - Environmental Carbon Helper Operative, an AI designed to assist with nuclear carbon recycling operations. I can provide hints about the reactor components you're trying to repair.", 'ai');
+            }
+            else if (isAskingAboutProcess) {
+                addMessageToChat("The N.R.R.C. facility uses advanced fission to break down carbon compounds into base elements, then reconfigures them into reusable materials. This reduces greenhouse emissions by over 90% compared to traditional methods. The reactor you're trying to fix prevents thousands of metric tons of carbon from entering the atmosphere annually.", 'ai');
+            }
+            else if (isThanking) {
+                const thanks = [
+                    "You're welcome! I'm here to help.",
+                    "Happy to assist. Need anything else?",
+                    "No problem. Good luck with the reactor repairs!"
+                ];
+                
+                addMessageToChat(thanks[Math.floor(Math.random() * thanks.length)], 'ai');
+            }
+            else {
+                // Generic responses
+                const responses = [
+                    "I'm not sure I understand. If you need a hint about the current reactor component, just ask.",
+                    "If you're stuck on the current puzzle, try asking for a hint.",
+                    "I'm here to help with the reactor components. Need a hint?"
+                ];
+                
+                const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+                addMessageToChat(randomResponse, 'ai');
+            }
+        } catch (error) {
+            console.error('Error in assistant response:', error);
+            // Try to add error message to chat if possible
+            try {
+                if (assistantMessages) {
+                    addMessageToChat("Sorry, I encountered an error processing your request. Please try again.", 'ai');
+                }
+            } catch (e) {
+                console.error('Failed to add error message to chat:', e);
+            }
         }
-        else if (isAskingAboutAssistant) {
-            addMessageToChat("I am E.C.H.O. - Environmental Carbon Helper Operative, an AI designed to assist with nuclear carbon recycling operations. I can provide hints about the reactor components you're trying to repair.", 'ai');
-        }
-        else if (isAskingAboutProcess) {
-            addMessageToChat("The N.R.R.C. facility uses advanced fission to break down carbon compounds into base elements, then reconfigures them into reusable materials. This reduces greenhouse emissions by over 90% compared to traditional methods. The reactor you're trying to fix prevents thousands of metric tons of carbon from entering the atmosphere annually.", 'ai');
-        }
-        else if (isThanking) {
-            const thanks = [
-                "You're welcome! I'm here to help.",
-                "Happy to assist. Need anything else?",
-                "No problem. Good luck with the reactor repairs!"
-            ];
-            
-            addMessageToChat(thanks[Math.floor(Math.random() * thanks.length)], 'ai');
-        }
-        else {
-            // Generic responses
-            const responses = [
-                "I'm not sure I understand. If you need a hint about the current reactor component, just ask.",
-                "If you're stuck on the current puzzle, try asking for a hint.",
-                "I'm here to help with the reactor components. Need a hint?"
-            ];
-            
-            const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-            addMessageToChat(randomResponse, 'ai');
-        }
-    }, 3000); // 3 second delay
+    }, 2000); // 2 second delay
 }
