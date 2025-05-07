@@ -132,7 +132,8 @@ const soundFiles = {
     button: 'assets/sounds/button-click.mp3',
     success: 'assets/sounds/success.mp3',
     error: 'assets/sounds/error.mp3',
-    hint: 'assets/sounds/hint.mp3'
+    hint: 'assets/sounds/hint.mp3',
+    timer: 'assets/sounds/timer.mp3'
 };
 
 // Improved Sound Manager with AudioContext for better cross-browser reliability
@@ -315,6 +316,8 @@ const soundManager = {
             audio.volume = 0.38;
         } else if (key === 'hint') {
             audio.volume = 0.32;
+        } else if (key === 'timer') {
+            audio.volume = 0.15; // Lower volume for timer sound
         }
         
         // Start loading
@@ -388,6 +391,8 @@ const soundManager = {
                 volume = 0.38;
             } else if (key === 'hint') {
                 volume = 0.32;
+            } else if (key === 'timer') {
+                volume = 0.15; // Lower volume for timer sound
             }
             
             // Set the gain value
@@ -527,6 +532,9 @@ const soundManager = {
 
 // Initialize the sound manager immediately
 soundManager.init();
+
+// Make the sound manager available globally
+window.soundManager = soundManager;
 
 // Function to unlock audio on first user interaction
 function unlockAudioOnce() {

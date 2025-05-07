@@ -3,6 +3,9 @@ let timerInterval;
 let timeLeft;
 let timerCallback;
 
+// Import reference to sound manager
+let soundManager;
+
 /**
  * Initialize the timer
  * @param {number} seconds - Total seconds for the countdown
@@ -11,6 +14,11 @@ let timerCallback;
 export function initTimer(seconds, callback) {
     timeLeft = seconds;
     timerCallback = callback;
+    
+    // Get reference to the sound manager from the global scope
+    if (window.soundManager) {
+        soundManager = window.soundManager;
+    }
     
     // Update the countdown display
     updateTimerDisplay();
@@ -21,6 +29,11 @@ export function initTimer(seconds, callback) {
         
         // Update the display
         updateTimerDisplay();
+        
+        // Play timer sound on each second
+        if (soundManager && timeLeft > 0) {
+            soundManager.play('timer');
+        }
         
         // Check if time is up
         if (timeLeft <= 0) {
