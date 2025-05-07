@@ -135,265 +135,413 @@ const soundFiles = {
     hint: 'assets/sounds/hint.mp3'
 };
 
-// Add debugging info to the page
-function addDebugInfo(message) {
-    console.log("DEBUG:", message);
-    // Only add visible debug in development
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        const debugContainer = document.getElementById('debug-container') || (() => {
-            const container = document.createElement('div');
-            container.id = 'debug-container';
-            container.style.position = 'fixed';
-            container.style.bottom = '10px';
-            container.style.left = '10px';
-            container.style.backgroundColor = 'rgba(0,0,0,0.8)';
-            container.style.color = '#ff0';
-            container.style.padding = '10px';
-            container.style.fontFamily = 'monospace';
-            container.style.fontSize = '12px';
-            container.style.zIndex = '9999';
-            container.style.maxHeight = '200px';
-            container.style.overflow = 'auto';
-            document.body.appendChild(container);
-            return container;
-        })();
-        
-        const msgElem = document.createElement('div');
-        msgElem.textContent = message;
-        debugContainer.appendChild(msgElem);
-    }
-}
-
+// Improved Sound Manager with AudioContext for better cross-browser reliability
 const soundManager = {
-    sounds: {},
-    humInstance: null,
+    context: null,
+    buffers: {},
+    sources: {},
+    humSource: null,
+    humGain: null,
     unlocked: false,
-    load() {
-        console.log('Loading sound files...');
-        for (const [key, src] of Object.entries(soundFiles)) {
-            console.log(`Loading sound: ${key} from ${src}`);
-            addDebugInfo(`Loading sound: ${key} from ${src}`);
+    initialized: false,
+    
+    // Initialize the audio context and set up event listeners
+    init() {
+        try {
+            // Create audio context
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.context = new AudioContext();
             
-            const audio = new Audio(src);
+            // Create master gain node for volume control
+            this.masterGain = this.context.createGain();
+            this.masterGain.gain.value = 0.5;
+            this.masterGain.connect(this.context.destination);
             
-            // Add canplaythrough event listener
-            audio.addEventListener('canplaythrough', () => {
-                console.log(`Sound ${key} loaded successfully`);
-                addDebugInfo(`Sound ${key} loaded successfully`);
-            });
+            // Create specific gain for the hum (background sound)
+            this.humGain = this.context.createGain();
+            this.humGain.gain.value = 0.18; // Lower volume for background hum
+            this.humGain.connect(this.masterGain);
             
-            audio.onerror = (e) => {
-                console.error(`Failed to load sound ${key} from ${src}:`, e);
-                addDebugInfo(`Failed to load sound ${key} from ${src}: ${e.target.error ? e.target.error.code : 'unknown error'}`);
-                
-                // Try an alternative approach for MP3 files
-                if (src.endsWith('.mp3')) {
-                    // Create a fetch request to check if the file exists
-                    fetch(src)
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error(`HTTP error! status: ${response.status}`);
-                            }
-                            addDebugInfo(`Fetch for ${src} succeeded, but Audio API failed. Status: ${response.status}`);
-                            return response.blob();
-                        })
-                        .then(blob => {
-                            // Try to create an object URL
-                            const objectUrl = URL.createObjectURL(blob);
-                            addDebugInfo(`Created object URL for ${key}: ${objectUrl}`);
-                            
-                            const newAudio = new Audio(objectUrl);
-                            newAudio.volume = audio.volume;
-                            this.sounds[key] = newAudio;
-                            
-                            newAudio.addEventListener('canplaythrough', () => {
-                                addDebugInfo(`Sound ${key} loaded successfully via blob`);
-                            });
-                            
-                            newAudio.onerror = (err) => {
-                                addDebugInfo(`Still failed to load ${key} via blob: ${err}`);
-                            };
-                        })
-                        .catch(error => {
-                            addDebugInfo(`Fetch for ${src} failed: ${error.message}`);
-                        });
-                }
-            };
+            console.log('Audio context created successfully');
+            this.initialized = true;
             
-            if (key === 'hum') {
-                audio.loop = true;
-                audio.volume = 0.18;
-            } else if (key === 'tick') {
-                audio.volume = 0.38;
-            } else if (key === 'keystroke') {
-                audio.volume = 0.28;
-            } else if (key === 'button') {
-                audio.volume = 0.32;
-            } else if (key === 'success') {
-                audio.volume = 0.38;
-            } else if (key === 'error') {
-                audio.volume = 0.38;
-            } else if (key === 'hint') {
-                audio.volume = 0.32;
-            }
-            this.sounds[key] = audio;
-        }
-    },
-    play(key) {
-        if (!this.unlocked && key !== 'hum') return;
-        if (key === 'hum') {
-            if (!this.humInstance) {
-                this.humInstance = this.sounds.hum.cloneNode();
-                this.humInstance.loop = true;
-                this.humInstance.volume = this.sounds.hum.volume;
-                
-                // Try to play the hum with better error handling
-                try {
-                    const playPromise = this.humInstance.play();
-                    if (playPromise !== undefined) {
-                        playPromise.catch(e => {
-                            console.warn('Hum play failed:', e);
-                            addDebugInfo(`Hum play failed: ${e.message}`);
-                            
-                            // Try to recreate and reload the audio
-                            setTimeout(() => {
-                                try {
-                                    // Try with fetch first
-                                    fetch(soundFiles.hum)
-                                        .then(response => {
-                                            if (!response.ok) {
-                                                throw new Error(`HTTP error! status: ${response.status}`);
-                                            }
-                                            return response.blob();
-                                        })
-                                        .then(blob => {
-                                            const objectUrl = URL.createObjectURL(blob);
-                                            const newHum = new Audio(objectUrl);
-                                            newHum.loop = true;
-                                            newHum.volume = this.sounds.hum.volume;
-                                            newHum.play().catch(err => {
-                                                console.error('Retry hum via blob failed:', err);
-                                                addDebugInfo(`Retry hum via blob failed: ${err.message}`);
-                                            });
-                                            this.humInstance = newHum;
-                                        })
-                                        .catch(error => {
-                                            console.error('Fetch for hum failed:', error);
-                                            addDebugInfo(`Fetch for hum failed: ${error.message}`);
-                                            
-                                            // Traditional approach as last resort
-                                            const newHum = new Audio(soundFiles.hum + '?t=' + Date.now());
-                                            newHum.loop = true;
-                                            newHum.volume = this.sounds.hum.volume;
-                                            newHum.play().catch(err => {
-                                                console.error('Last resort hum failed:', err);
-                                                addDebugInfo(`Last resort hum failed: ${err.message}`);
-                                            });
-                                            this.humInstance = newHum;
-                                        });
-                                } catch (fetchError) {
-                                    console.error('Error setting up hum retry:', fetchError);
-                                    addDebugInfo(`Error setting up hum retry: ${fetchError.message}`);
-                                }
-                            }, 1000);
-                        });
-                    }
-                } catch (e) {
-                    console.error('Error playing hum:', e);
-                    addDebugInfo(`Error playing hum: ${e.message}`);
-                }
-            } else if (this.humInstance.paused) {
-                this.humInstance.play().catch(e => {
-                    console.warn('Hum play failed on resume:', e);
-                    addDebugInfo(`Hum play failed on resume: ${e.message}`);
-                });
-            }
-            return;
-        }
-        
-        if (this.sounds[key]) {
-            try {
-                const sfx = this.sounds[key].cloneNode();
-                sfx.volume = this.sounds[key].volume;
-                
-                const playPromise = sfx.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(e => {
-                        console.warn(`Sound ${key} play failed:`, e);
-                        addDebugInfo(`Sound ${key} play failed: ${e.message}`);
-                        
-                        // Try with fetch as an alternative
-                        fetch(soundFiles[key])
-                            .then(response => {
-                                if (!response.ok) {
-                                    throw new Error(`HTTP error! status: ${response.status}`);
-                                }
-                                return response.blob();
-                            })
-                            .then(blob => {
-                                const objectUrl = URL.createObjectURL(blob);
-                                const newSfx = new Audio(objectUrl);
-                                newSfx.volume = this.sounds[key].volume;
-                                newSfx.play().catch(err => console.error(`Retry ${key} via blob failed:`, err));
-                            })
-                            .catch(error => {
-                                console.error(`Fetch for ${key} failed:`, error);
-                                addDebugInfo(`Fetch for ${key} failed: ${error.message}`);
-                                
-                                // Last resort - try a different URL with cache busting
-                                const newSfx = new Audio(soundFiles[key] + '?t=' + Date.now());
-                                newSfx.volume = this.sounds[key].volume;
-                                newSfx.play().catch(err => console.error(`Last resort ${key} failed:`, err));
-                            });
+            // Start loading sounds
+            this.loadSounds();
+            
+            // Resume context on user interaction (required by most browsers)
+            const resumeAudio = () => {
+                if (this.context.state === 'suspended') {
+                    this.context.resume().then(() => {
+                        console.log('AudioContext resumed successfully');
+                        this.unlocked = true;
+                        // Start hum after audio is unlocked
+                        this.play('hum');
+                    }).catch(e => {
+                        console.error('Failed to resume AudioContext:', e);
                     });
                 }
-            } catch (e) {
-                console.error(`Error playing ${key}:`, e);
-                addDebugInfo(`Error playing ${key}: ${e.message}`);
+                
+                // Remove the event listeners after first interaction
+                ['click', 'touchstart', 'keydown'].forEach(eventType => {
+                    document.removeEventListener(eventType, resumeAudio);
+                });
+            };
+            
+            // Add event listeners for user interaction
+            ['click', 'touchstart', 'keydown'].forEach(eventType => {
+                document.addEventListener(eventType, resumeAudio);
+            });
+            
+            return true;
+        } catch (e) {
+            console.error('Failed to initialize AudioContext:', e);
+            return false;
+        }
+    },
+    
+    // Load all sound files
+    loadSounds() {
+        if (!this.initialized) {
+            console.error('Sound manager not initialized');
+            return false;
+        }
+        
+        Object.entries(soundFiles).forEach(([key, url]) => {
+            this.loadSound(key, url);
+        });
+        
+        return true;
+    },
+    
+    // Load a single sound file
+    loadSound(key, url) {
+        console.log(`Loading sound: ${key} from ${url}`);
+        
+        // If the sound is already loading, don't load it again
+        if (this.buffers[key]) return;
+        
+        // Create a placeholder so we know this sound is being loaded
+        this.buffers[key] = null;
+        
+        // Add cache buster to force reload
+        const cacheBustedUrl = url + '?v=' + Date.now();
+        
+        // Fetch the audio file
+        fetch(cacheBustedUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Failed to load sound ${key}: ${response.status}`);
+                }
+                return response.arrayBuffer();
+            })
+            .then(arrayBuffer => {
+                // Decode the audio data
+                return this.context.decodeAudioData(arrayBuffer);
+            })
+            .then(audioBuffer => {
+                // Store the decoded buffer
+                this.buffers[key] = audioBuffer;
+                console.log(`Sound ${key} loaded successfully`);
+                
+                // If this is the hum, start playing it if audio is unlocked
+                if (key === 'hum' && this.unlocked) {
+                    this.play('hum');
+                }
+            })
+            .catch(error => {
+                console.error(`Error loading sound ${key}:`, error);
+                
+                // Try backup method with regular Audio API
+                this.loadSoundBackup(key, url);
+            });
+    },
+    
+    // Backup loading method using legacy Audio API
+    loadSoundBackup(key, url) {
+        console.log(`Trying backup method for sound: ${key}`);
+        
+        const audio = new Audio(url + '?backup=' + Date.now());
+        
+        audio.addEventListener('canplaythrough', () => {
+            console.log(`Sound ${key} loaded via backup method`);
+            
+            // Create an empty buffer for the audio's duration
+            const duration = audio.duration || 2; // Default 2 seconds if duration is not available
+            const sampleRate = this.context.sampleRate;
+            const frameCount = duration * sampleRate;
+            const buffer = this.context.createBuffer(2, frameCount, sampleRate);
+            
+            // Store the backup buffer
+            this.buffers[key] = {
+                backupAudio: audio,
+                isBackup: true,
+                buffer: buffer
+            };
+            
+            // Start playing hum if needed
+            if (key === 'hum' && this.unlocked) {
+                this.play('hum');
             }
-        } else {
-            console.warn(`Sound ${key} not loaded`);
-            addDebugInfo(`Sound ${key} not loaded`);
+        });
+        
+        audio.addEventListener('error', () => {
+            console.error(`Backup method failed for sound ${key}`);
+            
+            // Create an empty buffer as a last resort
+            const sampleRate = this.context.sampleRate;
+            const frameCount = 2 * sampleRate; // 2 second empty buffer
+            const buffer = this.context.createBuffer(2, frameCount, sampleRate);
+            
+            // Store the empty buffer
+            this.buffers[key] = {
+                isEmpty: true,
+                buffer: buffer
+            };
+        });
+        
+        // Set volume levels
+        if (key === 'hum') {
+            audio.volume = 0.18;
+            audio.loop = true;
+        } else if (key === 'tick') {
+            audio.volume = 0.38;
+        } else if (key === 'keystroke') {
+            audio.volume = 0.28;
+        } else if (key === 'button') {
+            audio.volume = 0.32;
+        } else if (key === 'success') {
+            audio.volume = 0.38;
+        } else if (key === 'error') {
+            audio.volume = 0.38;
+        } else if (key === 'hint') {
+            audio.volume = 0.32;
+        }
+        
+        // Start loading
+        audio.load();
+    },
+    
+    // Play a sound
+    play(key) {
+        if (!this.initialized) {
+            console.warn('Sound manager not initialized');
+            return false;
+        }
+        
+        if (!this.unlocked && key !== 'hum') {
+            console.warn('Audio not unlocked yet');
+            return false;
+        }
+        
+        // Special handling for hum (background loop)
+        if (key === 'hum') {
+            return this.playHum();
+        }
+        
+        // Check if the sound buffer exists
+        if (!this.buffers[key]) {
+            console.warn(`Sound ${key} not loaded yet`);
+            // Try to load it
+            if (soundFiles[key]) {
+                this.loadSound(key, soundFiles[key]);
+            }
+            return false;
+        }
+        
+        try {
+            // Handle backup audio
+            if (this.buffers[key].isBackup) {
+                const backupAudio = this.buffers[key].backupAudio;
+                if (backupAudio) {
+                    backupAudio.currentTime = 0;
+                    backupAudio.play().catch(e => {
+                        console.warn(`Failed to play backup sound ${key}:`, e);
+                    });
+                }
+                return true;
+            }
+            
+            // Handle empty buffers
+            if (this.buffers[key].isEmpty) {
+                console.warn(`Cannot play empty sound ${key}`);
+                return false;
+            }
+            
+            // Create a new source for this sound
+            const source = this.context.createBufferSource();
+            source.buffer = this.buffers[key];
+            
+            // Create a gain node for this specific sound
+            const gainNode = this.context.createGain();
+            
+            // Set volume based on sound type
+            let volume = 0.5;
+            if (key === 'tick') {
+                volume = 0.38;
+            } else if (key === 'keystroke') {
+                volume = 0.28;
+            } else if (key === 'button') {
+                volume = 0.32;
+            } else if (key === 'success') {
+                volume = 0.38;
+            } else if (key === 'error') {
+                volume = 0.38;
+            } else if (key === 'hint') {
+                volume = 0.32;
+            }
+            
+            // Set the gain value
+            gainNode.gain.value = volume;
+            
+            // Connect the source to gain, and gain to master
+            source.connect(gainNode);
+            gainNode.connect(this.masterGain);
+            
+            // Start playing
+            source.start(0);
+            console.log(`Playing sound: ${key}`);
+            
+            // Clean up when done
+            source.onended = () => {
+                source.disconnect();
+                gainNode.disconnect();
+            };
+            
+            return true;
+        } catch (e) {
+            console.error(`Error playing sound ${key}:`, e);
+            return false;
         }
     },
+    
+    // Special method for playing the background hum loop
+    playHum() {
+        // Skip if hum is already playing
+        if (this.humSource && this.humSource.isPlaying) {
+            return true;
+        }
+        
+        // Check if hum buffer exists
+        if (!this.buffers.hum) {
+            console.warn('Hum sound not loaded yet');
+            return false;
+        }
+        
+        try {
+            // Handle backup audio for hum
+            if (this.buffers.hum.isBackup) {
+                const backupAudio = this.buffers.hum.backupAudio;
+                if (backupAudio) {
+                    backupAudio.loop = true;
+                    backupAudio.play().catch(e => {
+                        console.warn('Failed to play backup hum:', e);
+                    });
+                }
+                
+                this.humSource = {
+                    isPlaying: true,
+                    stop: () => {
+                        backupAudio.pause();
+                        backupAudio.currentTime = 0;
+                    }
+                };
+                
+                return true;
+            }
+            
+            // Handle empty buffer
+            if (this.buffers.hum.isEmpty) {
+                console.warn('Cannot play empty hum buffer');
+                return false;
+            }
+            
+            // Create buffer source for hum
+            const source = this.context.createBufferSource();
+            source.buffer = this.buffers.hum;
+            source.loop = true;
+            
+            // Connect to hum gain node
+            source.connect(this.humGain);
+            
+            // Start playing
+            source.start(0);
+            console.log('Playing background hum');
+            
+            // Save the source so we can stop it later
+            this.humSource = source;
+            this.humSource.isPlaying = true;
+            
+            return true;
+        } catch (e) {
+            console.error('Error playing hum:', e);
+            return false;
+        }
+    },
+    
+    // Stop the background hum
     stopHum() {
-        if (this.humInstance) {
-            this.humInstance.pause();
-            this.humInstance.currentTime = 0;
+        if (this.humSource) {
+            try {
+                if (typeof this.humSource.stop === 'function') {
+                    this.humSource.stop();
+                }
+                this.humSource.isPlaying = false;
+                console.log('Hum stopped');
+            } catch (e) {
+                console.error('Error stopping hum:', e);
+            }
+            
+            // Create a new hum source for next time
+            this.humSource = null;
         }
     },
-    unlockAll() {
-        this.unlocked = true;
-        this.play('hum');
+    
+    // Force unlock audio (call this on first user interaction)
+    unlockAudio() {
+        if (this.unlocked) return true;
+        
+        console.log('Unlocking audio...');
+        
+        if (this.context && this.context.state === 'suspended') {
+            this.context.resume().then(() => {
+                this.unlocked = true;
+                console.log('Audio context resumed and unlocked');
+                
+                // Start the background hum
+                this.play('hum');
+                
+                // Add UI feedback
+                appendToTerminalWithFormatting('\n<span class="system-text">&gt; AUDIO UNLOCKED</span>');
+            }).catch(error => {
+                console.error('Failed to resume audio context:', error);
+            });
+        } else {
+            // Context is already running or doesn't exist
+            this.unlocked = true;
+            this.play('hum');
+        }
+        
+        return this.unlocked;
     }
 };
 
-// Load sounds on DOMContentLoaded
-soundManager.load();
+// Initialize the sound manager immediately
+soundManager.init();
 
-// Unlock audio on first user interaction
+// Function to unlock audio on first user interaction
 function unlockAudioOnce() {
-    if (!soundManager.unlocked) {
-        console.log('Attempting to unlock audio...');
-        // Create and play a silent audio to unlock audio context
-        const silentAudio = new Audio("data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABGgD///////////////////////////////////////////8AAAA8TEFNRTMuMTAwAQAAAAAAAAAAABSAJAaWQgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sQZAAP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV");
-        silentAudio.play().then(() => {
-            console.log('Audio unlocked successfully!');
-            soundManager.unlockAll();
-            appendToTerminalWithFormatting('\n<span class="system-text">&gt; AUDIO UNLOCKED</span>');
-            // Fallback: retry hum after 2s if not playing
-            setTimeout(() => { soundManager.play('hum'); }, 2000);
-        }).catch(e => {
-            console.warn('Silent audio unlock failed:', e);
-            // Try manual unlock anyway
-            soundManager.unlockAll();
-        });
-    }
-    window.removeEventListener('click', unlockAudioOnce);
-    window.removeEventListener('keydown', unlockAudioOnce);
+    soundManager.unlockAudio();
+    
+    // Remove event listeners
+    document.removeEventListener('click', unlockAudioOnce);
+    document.removeEventListener('touchstart', unlockAudioOnce);
+    document.removeEventListener('keydown', unlockAudioOnce);
 }
-window.addEventListener('click', unlockAudioOnce);
-window.addEventListener('keydown', unlockAudioOnce);
+
+// Add event listeners to unlock audio
+document.addEventListener('click', unlockAudioOnce);
+document.addEventListener('touchstart', unlockAudioOnce);
+document.addEventListener('keydown', unlockAudioOnce);
 
 // Initialize the game
 document.addEventListener('DOMContentLoaded', () => {
@@ -733,7 +881,7 @@ function addEventListeners() {
     
     // Start button
     if (startButton) {
-        startButton.addEventListener('click', startGame);
+    startButton.addEventListener('click', startGame);
     } else {
         console.error('Start button not found');
     }
@@ -791,12 +939,12 @@ function addEventListeners() {
     
     // Terminal input
     if (terminalInput) {
-        terminalInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                handleTerminalSubmit();
-            }
-        });
-        
+    terminalInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            handleTerminalSubmit();
+        }
+    });
+    
         // Secret reset shortcut - Enter 'resetgame' in terminal
         terminalInput.addEventListener('input', checkForSecretCodes);
     } else {
@@ -827,11 +975,11 @@ function addEventListeners() {
     
     // AI Assistant input field
     if (assistantInput) {
-        assistantInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                handleAssistantSubmit();
-            }
-        });
+    assistantInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            handleAssistantSubmit();
+        }
+    });
     } else {
         console.error('Assistant input not found');
     }
@@ -1716,58 +1864,58 @@ function handleAssistantSubmit() {
     // Shorter delay to make it more responsive (2s instead of 3s)
     setTimeout(() => {
         try {
-            // Remove thinking indicator
+        // Remove thinking indicator
             if (thinkingElement.parentNode) {
-                assistantMessages.removeChild(thinkingElement);
+        assistantMessages.removeChild(thinkingElement);
             }
+        
+        // Select appropriate response
+        if (isAskingForHint) {
+            // Get appropriate hint based on hints used
+            const hintIndex = Math.min(gameState.hintsUsed, puzzle.hints.length - 1);
+            const hint = puzzle.hints[hintIndex];
             
-            // Select appropriate response
-            if (isAskingForHint) {
-                // Get appropriate hint based on hints used
-                const hintIndex = Math.min(gameState.hintsUsed, puzzle.hints.length - 1);
-                const hint = puzzle.hints[hintIndex];
-                
                 // Add AI message with hint
                 addMessageToChat(hint, 'ai');
-                
-                // Increment hints used
-                gameState.hintsUsed++;
-            } 
-            else if (isGreeting) {
-                const greetings = [
+            
+            // Increment hints used
+            gameState.hintsUsed++;
+        } 
+        else if (isGreeting) {
+            const greetings = [
                     "Hello! I'm E.C.H.O., your Environmental Carbon Helper Operative. How can I assist with the reactor today?",
                     "Greetings! E.C.H.O. at your service. Need a hint?",
                     "Hi there! I'm here to help you save the facility. Need assistance?"
-                ];
-                
-                addMessageToChat(greetings[Math.floor(Math.random() * greetings.length)], 'ai');
-            }
-            else if (isAskingAboutAssistant) {
+            ];
+            
+            addMessageToChat(greetings[Math.floor(Math.random() * greetings.length)], 'ai');
+        }
+        else if (isAskingAboutAssistant) {
                 addMessageToChat("I am E.C.H.O. - Environmental Carbon Helper Operative, an AI designed to assist with nuclear carbon recycling operations. I can provide hints about the reactor components you're trying to repair.", 'ai');
-            }
-            else if (isAskingAboutProcess) {
+        }
+        else if (isAskingAboutProcess) {
                 addMessageToChat("The N.R.R.C. facility uses advanced fission to break down carbon compounds into base elements, then reconfigures them into reusable materials. This reduces greenhouse emissions by over 90% compared to traditional methods. The reactor you're trying to fix prevents thousands of metric tons of carbon from entering the atmosphere annually.", 'ai');
-            }
-            else if (isThanking) {
-                const thanks = [
+        }
+        else if (isThanking) {
+            const thanks = [
                     "You're welcome! I'm here to help.",
                     "Happy to assist. Need anything else?",
                     "No problem. Good luck with the reactor repairs!"
-                ];
-                
-                addMessageToChat(thanks[Math.floor(Math.random() * thanks.length)], 'ai');
-            }
-            else {
+            ];
+            
+            addMessageToChat(thanks[Math.floor(Math.random() * thanks.length)], 'ai');
+        }
+        else {
                 // Generic responses
-                const responses = [
+            const responses = [
                     "I'm not sure I understand. If you need a hint about the current reactor component, just ask.",
                     "If you're stuck on the current puzzle, try asking for a hint.",
                     "I'm here to help with the reactor components. Need a hint?"
-                ];
-                
-                const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-                addMessageToChat(randomResponse, 'ai');
-            }
+            ];
+            
+            const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+            addMessageToChat(randomResponse, 'ai');
+        }
         } catch (error) {
             console.error('Error in assistant response:', error);
             // Try to add error message to chat if possible

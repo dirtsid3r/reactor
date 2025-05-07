@@ -1,7 +1,7 @@
 // Export an array of puzzles generated from the CSV
 export const puzzles = [
   // P001
-  {
+    {
     componentName: "Blocking generator",
     initialMessage: `The reactor's intake system is blocked because it can't identify the main pollutant it's supposed to capture.\nThe sensors are confused. You need to figure out what the reactor needs to capture.\n\nThere is a hidden message for you that can help you`,
     passphrase: "carbon footprint",
@@ -15,7 +15,7 @@ export const puzzles = [
     puzzleType: "standard"
   },
   // P002 - Sorting Puzzle
-  {
+    {
     componentName: "What is the target?",
     initialMessage: `The molecular disassembly chamber is malfunctioning; the lasers can't target the CO2 to decompose if it doesn't know the sources of the CO2. To calibrate the laser system, you must identify the hidden costs different categories have in our environment.`,
     passphrase: "hidden costs",
@@ -52,7 +52,7 @@ export const puzzles = [
     }
   },
   // P003
-  {
+    {
     componentName: "Power Plant Leak",
     initialMessage: `At the power plant control room, there's an energy leak happening because some machines are still drawing power even though they're not running properly.\nStudents have to spot the machines that are leaking phantom energy and identify the cause.`,
     passphrase: "Idle Monitor Control Panel Lights Security Cameras Charging Station Coffee Machine",
@@ -64,7 +64,7 @@ export const puzzles = [
     puzzleType: "standard"
   },
   // P004
-  {
+    {
     componentName: "Recycling Relay",
     initialMessage: `The recycling center's sorting machine is broken!\nYou need to manually sort the trash into the correct bins before the pile overflows.\nMatch each item to the right recycling bin. Act fast — the planet is counting on you!`,
     passphrase: "Plastic Paper Metal Organic E-Waste Glass",
@@ -78,7 +78,7 @@ export const puzzles = [
     puzzleType: "standard"
   },
   // P005
-  {
+    {
     componentName: "Keep 1.5 Alive",
     initialMessage: `Welcome delegates. Following the summit, your team must identify key national challenges and align with global solutions. Decode the final action phrase to complete your mission!`,
     passphrase: "KEEP 1.5 ALIVE",
@@ -91,7 +91,7 @@ export const puzzles = [
     puzzleType: "standard"
   },
   // P006
-  {
+    {
     componentName: "Water Use",
     initialMessage: `From heaven's tears to your daily needs, Some choices drain more than others indeed. To unlock the secrets that I withhold, Arrange nature's thirst from large to small. Enter the order as the passphrase below.`,
     passphrase: "Beef, Burger, Milk, Coffee, Toast, Tea",
@@ -104,7 +104,7 @@ export const puzzles = [
     puzzleType: "standard"
   },
   // P007
-  {
+    {
     componentName: "UV Reveal",
     initialMessage: `Welcome to the Greenwashing Challenge!\nToday, you'll explore the world of eco-friendly claims and discover how some products might not be as green as they appear. Your mission is to look closely, think critically, and uncover hidden truths. Keep your eyes open-sometimes what you see on the surface isn't the full story. Ready to reveal what's really behind the labels? Let's get started!`,
     passphrase: "140SYNTHETICLIES",
@@ -117,7 +117,7 @@ export const puzzles = [
     puzzleType: "standard"
   },
   // P008
-  {
+    {
     componentName: "AI Overlord",
     initialMessage: `The generator is down and must be rebooted! You need to gain access to the central control server to fix the generator. The engineers have gone, but they left a note with this message - \n\n"Praise be to thought with silicon born,\nSwift are the answers, from dusk until morn.\nIt listens and learns, a tireless guide,\nWith questions it thrives, with nothing to hide.\nCount not the cost, just marvel and dream,\nFor progress, like rivers, must flow in a stream -\nIn the end, it all comes down to the cool blue water."\n\n[colours are important]`,
     passphrase: "Prompts = Water",
@@ -131,7 +131,7 @@ export const puzzles = [
     puzzleType: "standard"
   },
   // P009
-  {
+    {
     componentName: "Generator Chaos",
     initialMessage: `The manager of the generator has caused chaos in an angry meltdown. The machine has a "sustainability flow circuit". You place the components in the correct places in order to resolve the chaos and fix this part of the generator.`,
     passphrase: "Recycled Aluminum Panels Bamboo Insulation Wrap Reclaimed Copper Coil 3D-printed Plastic Mount Modular Circuit Core Solar-Compatible Glass Panel",
