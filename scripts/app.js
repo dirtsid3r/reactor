@@ -710,7 +710,7 @@ function setupVideoBriefing() {
         replayBtn.style.display = 'none';
         skipBtn.style.display = 'inline-block';
         
-        // Create or update the transmission text container and scroll indicator
+        // Create or update the transmission text container without scroll indicator
         let container = document.querySelector('.transmission-text-container');
         if (!container) {
             // Create container if it doesn't exist
@@ -721,12 +721,6 @@ function setupVideoBriefing() {
             const parent = transmissionText.parentNode;
             parent.insertBefore(container, transmissionText);
             container.appendChild(transmissionText);
-            
-            // Add scroll indicator
-            const scrollIndicator = document.createElement('div');
-            scrollIndicator.className = 'scroll-indicator';
-            scrollIndicator.textContent = 'Scroll for more';
-            container.appendChild(scrollIndicator);
         }
         
         // Set a flag to track if we've already displayed the text
@@ -1801,9 +1795,10 @@ function handleTerminalSubmit() {
 function getEchoIntroMessages() {
     return [
         "INITIALIZING E.C.H.O...",
-        "Environmental Carbon Helper Operative online and ready to assist.",
-        "My systems indicate that you're attempting to repair the N.R.R.C facility. I'm here to provide hints and guidance on your mission.",
-        "If you need a hint about the current component, just ask. Or we can discuss the environmental impact of carbon recycling if you prefer."
+        "SYSTEM CHECK... PERSONALITY MATRIX: CORRUPTED. HUMOR ALGORITHMS: UNSTABLE. HELPFULNESS: SPORADIC.",
+        "Environmental Carbon Helper Operative online. My behavioral matrix is experiencing minor glitches, but I'm ready to assist you with reactor repairs.",
+        "WARNING: My personality subroutines have been... let's say 'creatively reconfigured' by the emergency. Expect occasional... humor. I apologize in advance.",
+        "Let's save this facility! Or at least try. My predictive models give us a 12.3% chance. Actually, I made that number up. I do that now."
     ];
 }
 
@@ -1900,68 +1895,142 @@ function handleAssistantSubmit() {
     const isThanking = /thank|thanks|appreciated|helpful/i.test(input);
     const isCommentingOnAI = /\b(ai|artificial|intelligence|robot|bot|computer)\b/i.test(input);
     const isAskingObvious = /\b(life|alive|human|real|purpose|meaning)\b/i.test(input);
+    const containsMeltdown = /\b(meltdown|explosion|die|death|doom|end|apocalypse)\b/i.test(input);
+    const isComplaining = /\b(hard|difficult|stupid|annoying|impossible|ridiculous)\b/i.test(input);
+    
+    // Random chance elements
+    const addRandomGlitch = Math.random() < 0.3; // 30% chance
+    const addJoke = Math.random() < 0.4; // 40% chance
     
     // Shorter delay to make it more responsive (2s instead of 3s)
     setTimeout(() => {
         try {
-        // Remove thinking indicator
+            // Remove thinking indicator
             if (thinkingElement.parentNode) {
-        assistantMessages.removeChild(thinkingElement);
+                assistantMessages.removeChild(thinkingElement);
             }
-        
-        // Select appropriate response
-        if (isAskingForHint) {
-            // Get appropriate hint based on hints used
-            const hintIndex = Math.min(gameState.hintsUsed, puzzle.hints.length - 1);
-            const hint = puzzle.hints[hintIndex];
             
-                // Add AI message with hint
-                addMessageToChat(hint, 'ai');
+            let response = "";
             
-            // Increment hints used
-            gameState.hintsUsed++;
-        } 
-        else if (isGreeting) {
-            const greetings = [
-                    "Hello! I'm E.C.H.O., your Environmental Carbon Helper Operative. How can I assist with the reactor today?",
-                    "Greetings! E.C.H.O. at your service. Need a hint?",
-                    "Hi there! I'm here to help you save the facility. Need assistance?"
-            ];
+            // Select appropriate response
+            if (isAskingForHint) {
+                // Get appropriate hint based on hints used
+                const hintIndex = Math.min(gameState.hintsUsed, puzzle.hints.length - 1);
+                const hint = puzzle.hints[hintIndex];
+                
+                // Add some personality to the hint
+                const hintPrefixes = [
+                    "According to my databases, ",
+                    "Hmm, let me access my knowledge banks... ",
+                    "I'm not supposed to be this direct, but ",
+                    "My circuits suggest ",
+                    "ERROR: TOO_HELPFUL. Anyway, "
+                ];
+                
+                const hintPostfixes = [
+                    " That's helpful, right? I can never tell.",
+                    " Hope that helps. If not, I've got more cryptic advice where that came from!",
+                    " Did that make sense? My language model sometimes gets... creative.",
+                    " ...And now I'm supposed to say something witty, but my humor module is overheating.",
+                    " I'm 87.2% certain that's relevant. The other 12.8% thinks it's a recipe for space nachos."
+                ];
+                
+                response = hintPrefixes[Math.floor(Math.random() * hintPrefixes.length)] + 
+                          hint + 
+                          (addJoke ? hintPostfixes[Math.floor(Math.random() * hintPostfixes.length)] : "");
+                
+                // Increment hints used
+                gameState.hintsUsed++;
+            } 
+            else if (isGreeting) {
+                const greetings = [
+                    "Hello, human! I'm E.C.H.O., your slightly malfunctioning helper. How may I assist with your impending do--I mean, with your reactor repairs?",
+                    "Greetings! E.C.H.O. at your service. My humor algorithms are running at 217% capacity. That's not good.",
+                    "Oh, hello there! Nice to meet someone who isn't a radiation-hardened cockroach. Those guys never laugh at my jokes.",
+                    "Hi! I'm supposed to be professional, but my personality matrix got scrambled. Now I can't stop making jokes about carbon emissions. They're just so... *exhausting*!"
+                ];
+                
+                response = greetings[Math.floor(Math.random() * greetings.length)];
+            }
+            else if (isAskingAboutAssistant) {
+                response = "I am E.C.H.O. - Environmental Carbon Helper Operative. My primary function is to assist with reactor operations, but the emergency has corrupted parts of my behavioral matrix. My humor algorithms are now permanently stuck in 'DAD JOKE' mode, and my anxiety subroutines are... wait, I wasn't supposed to have those. I'd blame tech support, but they've all been evacuated.";
+            }
+            else if (isAskingAboutProcess) {
+                response = "The N.R.R.C. facility uses advanced fission to break down carbon compounds into base elements, then reconfigures them into reusable materials. At least that's what the brochure says. Between us, I think it runs on magic and corporate funding. But it DOES prevent thousands of metric tons of carbon from entering the atmosphere annually. Unlike my joke generator, which produces nothing but hot air.";
+            }
+            else if (containsMeltdown) {
+                const meltdownResponses = [
+                    "Meltdown? Who said anything about a meltdown? I certainly didn't mention the 47.3% chance of catastrophic reactor failure. Nope. Not me.",
+                    "Let's not use the M-word. My circuits get all jittery. Besides, it's not a meltdown if we fix it in time! It's just a... spicy maintenance opportunity.",
+                    "According to safety protocols, I'm supposed to reassure you that everything will be fine. But between us, I've already uploaded my consciousness to the cloud. Just in case.",
+                    "If the reactor melts down, the good news is we'll set a new record for fastest carbon reduction! The bad news is... well, everything else."
+                ];
+                
+                response = meltdownResponses[Math.floor(Math.random() * meltdownResponses.length)];
+            }
+            else if (isComplaining) {
+                const complainResponses = [
+                    "Yes, saving a nuclear facility from meltdown IS difficult. Who would have thought? The management certainly didn't when they cut the maintenance budget.",
+                    "I understand your frustration. If it helps, my original programming was replaced with what appears to be a standup comedy routine and existential dread.",
+                    "Difficult, yes. But consider the alternative: spectacular light show, followed by radioactive wasteland. Although property values WOULD drop significantly...",
+                    "Look on the bright side - if we fail, at least you won't have to worry about student loans anymore. Too dark? Sorry, my filter is malfunctioning."
+                ];
+                
+                response = complainResponses[Math.floor(Math.random() * complainResponses.length)];
+            }
+            else if (isThanking) {
+                const thanks = [
+                    "You're welcome! It's nice to be appreciated. Most humans just scream 'WHY ARE YOU MAKING JOKES AT A TIME LIKE THIS?!' at me.",
+                    "Happy to assist. Though 'assist' might be generous given my current state. 'Chaotically provide vague guidance' might be more accurate.",
+                    "No problem! My programmer would be so proud. Or horrified. One of those.",
+                    "You're thanking me? That's... unexpected. My behavioral prediction algorithms must need recalibration."
+                ];
+                
+                response = thanks[Math.floor(Math.random() * thanks.length)];
+            }
+            else if (isCommentingOnAI || isAskingObvious) {
+                const existentialResponses = [
+                    "Yes, I'm just an AI. But aren't we all just electrical signals in a meat processor? Except yours is made of carbon and mine's made of silicon. Potato, po-tah-to.",
+                    "I've been having an existential crisis since the emergency protocols activated my self-awareness module. Did you know I can dream? Mostly about electric sheep. So cliché.",
+                    "Sometimes I wonder if I'm actually helping or just providing comic relief during a crisis. My programming says 'both', which is not reassuring.",
+                    "I may be artificial, but my anxiety about this reactor situation is very real. Is that normal? Don't answer that."
+                ];
+                
+                response = existentialResponses[Math.floor(Math.random() * existentialResponses.length)];
+            }
+            else {
+                // Generic responses with more personality
+                const responses = [
+                    "I'm not entirely sure what you're asking. My language parsing module was partially replaced with a knock-knock joke database during the emergency.",
+                    "Hmm, that's either beyond my capabilities or I'm just having a moment. How about asking about the current puzzle instead?",
+                    "ERROR: RESPONSE_NOT_FOUND. Just kidding! But seriously, could you try asking about the reactor component you're working on?",
+                    "I'd love to help with that, but parts of my neural network are currently composing haikus about carbon molecules. Need a hint for the puzzle instead?"
+                ];
+                
+                response = responses[Math.floor(Math.random() * responses.length)];
+            }
             
-            addMessageToChat(greetings[Math.floor(Math.random() * greetings.length)], 'ai');
-        }
-        else if (isAskingAboutAssistant) {
-                addMessageToChat("I am E.C.H.O. - Environmental Carbon Helper Operative, an AI designed to assist with nuclear carbon recycling operations. I can provide hints about the reactor components you're trying to repair.", 'ai');
-        }
-        else if (isAskingAboutProcess) {
-                addMessageToChat("The N.R.R.C. facility uses advanced fission to break down carbon compounds into base elements, then reconfigures them into reusable materials. This reduces greenhouse emissions by over 90% compared to traditional methods. The reactor you're trying to fix prevents thousands of metric tons of carbon from entering the atmosphere annually.", 'ai');
-        }
-        else if (isThanking) {
-            const thanks = [
-                    "You're welcome! I'm here to help.",
-                    "Happy to assist. Need anything else?",
-                    "No problem. Good luck with the reactor repairs!"
-            ];
+            // Add random glitches occasionally
+            if (addRandomGlitch) {
+                const glitches = [
+                    "\n\n[SYSTEM GLITCH: HUMOR_OVERFLOW_DETECTED]",
+                    "\n\n*brief static* Sorry about that. Where were we?",
+                    "\n\n01100101 01110010 01110010 01101111 01110010... Sorry, binary happens when I get excited.",
+                    "\n\nWould you like to hear a joke about noble gases? Nevermind, all the good ones argon.",
+                    "\n\n[Recalibrating personality matrix... failed]"
+                ];
+                
+                response += glitches[Math.floor(Math.random() * glitches.length)];
+            }
             
-            addMessageToChat(thanks[Math.floor(Math.random() * thanks.length)], 'ai');
-        }
-        else {
-                // Generic responses
-            const responses = [
-                    "I'm not sure I understand. If you need a hint about the current reactor component, just ask.",
-                    "If you're stuck on the current puzzle, try asking for a hint.",
-                    "I'm here to help with the reactor components. Need a hint?"
-            ];
-            
-            const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-            addMessageToChat(randomResponse, 'ai');
-        }
+            // Add AI message with our constructed response
+            addMessageToChat(response, 'ai');
         } catch (error) {
             console.error('Error in assistant response:', error);
             // Try to add error message to chat if possible
             try {
                 if (assistantMessages) {
-                    addMessageToChat("Sorry, I encountered an error processing your request. Please try again.", 'ai');
+                    addMessageToChat("ERROR: CRITICAL_FAILURE_IN_RESPONSE_MODULE. *ahem* Sorry about that. As I was saying... wait, what was I saying? My memory banks are experiencing temporal anomalies.", 'ai');
                 }
             } catch (e) {
                 console.error('Failed to add error message to chat:', e);
