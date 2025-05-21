@@ -1,6 +1,6 @@
 // Import other modules
 import { initTimer, getTimeRemaining, stopTimer } from './timer.js';
-import { initTerminal, typeInTerminal, clearTerminal, appendToTerminal as appendToTerminalWithFormatting } from './terminal.js';
+import { initTerminal, typeInTerminal, clearTerminal, appendToTerminal as appendToTerminalWithFormatting, prependSystemMessage } from './terminal.js';
 import { initReactor, updateReactorStatus, getReactorSchematic } from './reactor.js';
 import { puzzles } from '../data/puzzles.js';
 import { initSortingPuzzle, cleanupSortingPuzzle, isSortingPuzzleActive } from './sorting-puzzle.js';
@@ -13,7 +13,13 @@ const gameState = {
     isGameActive: false,
     startTime: null,
     endTime: null,
-    editedPuzzles: [...puzzles] // Clone puzzles for editing
+    editedPuzzles: [...puzzles], // Clone puzzles for editing
+    hasShownTutorial: false, // Add this to track if tutorial has been shown
+    
+    // Automatic hint system
+    puzzleStartTime: null,
+    hintTimers: [],
+    shownHints: 0
 };
 
 // Make gameState available to other modules (for custom icons)
@@ -92,37 +98,19 @@ Enter the correct passphrases to repair each component.
 `;
 
 // Transmission script for scrolling text
-const transmissionScript = `Welcome to the Nuclear Carbon Recycling Reactor facility. I am ATHENA, the facility's central intelligence system.
+const transmissionScript = `I am ATHENA, the facility's central intelligence system. My protocols dictate proper greetings, but circumstances require directness.
 
-My protocols dictate that I should greet you properly, but circumstances require directness.
-We have an emergency situation. A catastrophic system failure has occurred in our main reactor control systems.
+We have an emergency. Our Nuclear Carbon Recycling Reactor has experienced catastrophic system failure, triggering lockdown protocols. All personnel evacuated—except you.
+Your section's security override malfunctioned, sealing you inside until the reactor is either repaired or... let's focus on the repair part.
 
-This facility is designed to remove atmospheric carbon dioxide and convert it to synthetic fuels. However, a cascading failure has triggered emergency lockdown protocols. The reactor is offline and all personnel evacuated—except you.
+You have approximately 45 minutes before critical failure. Each reactor component requires a passphrase hidden in puzzles in those envelopes. A terminal tutorial video follows.
+ECHO can assist, though I must warn you the emergency has corrupted its behavioral matrix. Its humor algorithms appear to have... malfunctioned. It's still functional but exhibiting unpredictable personality behaviors.
 
-The security override in your section has malfunctioned. You're sealed inside the control room until the reactor is either repaired or... let's focus on the repair part.
-
-You can restore the system from your terminal, but my predictive models indicate approximately 45 minutes before critical failure.
-
-Each reactor component requires a specific passphrase to reboot. These passphrases are embedded within security puzzles throughout the facility's systems.
-
-Your terminal will guide you through component repairs. The objective is clear: solve all nine puzzles, input the correct passphrases, and restore reactor functionality before time expires.
-
-You have access to:
-1. A reactor schematic displaying repair progress.
-2. My subsystem ECHO for hints when required.
-3. A terminal interface for passphrase entry.
-
-ECHO can provide assistance, though I must warn you the emergency has corrupted portions of its behavioral matrix. Its humor algorithms appear to have... malfunctioned. It's still functional but exhibiting unpredictable personality behaviors my diagnostics cannot fully assess.
-
-My emergency response directives require I remind you to "stay calm and think clearly." Corporate programming also insists I emphasize this is "an opportunity for team growth and problem-solving excellence."
+My emergency directives require I remind you to "stay calm and think clearly." Corporate programming insists I emphasize this is "an opportunity for team growth and problem-solving excellence."
 
 Between my circuits and your consciousness: focus on preventing reactor meltdown. My sensors indicate this hemisphere contains 4.7 billion humans worth preserving.
-
-Each solved puzzle increases reactor stability. Complete all nine to restore functionality and unseal the doors.
-
-Good luck. The facility—and according to my calendar access, your weekend plans—depend on your performance.
-
-Connection stability degrading... Remember, 45 minutes... each puzzle is critical... and whatever you do, do not allow ECHO to convince you that—`;
+Complete all nine puzzles to restore functionality and unseal the doors. The facility—and according to my calendar access, your weekend plans—depend on your performance.
+Connection degrading... Remember: 45 minutes, nine puzzles, each critical...`;
 
 // --- SOUND MANAGER ---
 const soundFiles = {
@@ -596,16 +584,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Load saved puzzles from localStorage if available
 function loadSavedPuzzles() {
+    // Always reset to the original puzzles first as a fallback
+    gameState.editedPuzzles = [...puzzles];
+    gameState.totalPuzzles = puzzles.length;
+    
     const savedPuzzles = localStorage.getItem('nrrcPuzzles');
     if (savedPuzzles) {
         try {
             const parsedPuzzles = JSON.parse(savedPuzzles);
-            gameState.editedPuzzles = parsedPuzzles;
-            gameState.totalPuzzles = parsedPuzzles.length;
-            console.log('Loaded saved puzzles from localStorage');
+            // Only use saved puzzles if they're valid
+            if (Array.isArray(parsedPuzzles) && parsedPuzzles.length > 0) {
+                gameState.editedPuzzles = parsedPuzzles;
+                gameState.totalPuzzles = parsedPuzzles.length;
+                console.log('Loaded saved puzzles from localStorage');
+            } else {
+                console.warn('Saved puzzles were empty or invalid, using default puzzles');
+            }
         } catch (error) {
             console.error('Error loading saved puzzles:', error);
         }
+    } else {
+        console.log('No saved puzzles found, using default puzzles');
     }
 }
 
@@ -862,6 +861,7 @@ function addEventListeners() {
     const assistantInput = document.getElementById('assistant-input');
     const assistantSubmit = document.getElementById('assistant-submit');
     const assistantMessages = document.getElementById('assistant-messages');
+    const hintButton = document.getElementById('hint-button');
     
     // Start button
     if (startButton) {
@@ -937,13 +937,13 @@ function addEventListeners() {
     
     // Terminal input - Add keypress sound
     if (terminalInput) {
-        terminalInput.addEventListener('keypress', (e) => {
+    terminalInput.addEventListener('keypress', (e) => {
             soundManager.play('keystroke');
-            if (e.key === 'Enter') {
-                handleTerminalSubmit();
-            }
-        });
-        
+        if (e.key === 'Enter') {
+            handleTerminalSubmit();
+        }
+    });
+    
         // Secret reset shortcut - Enter 'resetgame' in terminal
         terminalInput.addEventListener('input', checkForSecretCodes);
     } else {
@@ -974,14 +974,26 @@ function addEventListeners() {
         console.error('Assistant submit button not found'); // Error logging
     }
     
+    // Hint button
+    if (hintButton) {
+        console.log('Binding hint button'); // Debug logging
+        hintButton.addEventListener('click', function() {
+            soundManager.play('button');
+            console.log('Hint button clicked');
+            handleHintButtonClick();
+        });
+    } else {
+        console.error('Hint button not found'); // Error logging
+    }
+    
     // AI Assistant input field - Add keypress sound
     if (assistantInput) {
-        assistantInput.addEventListener('keypress', (e) => {
+    assistantInput.addEventListener('keypress', (e) => {
             soundManager.play('keystroke');
-            if (e.key === 'Enter') {
-                handleAssistantSubmit();
-            }
-        });
+        if (e.key === 'Enter') {
+            handleAssistantSubmit();
+        }
+    });
     } else {
         console.error('Assistant input not found');
     }
@@ -993,7 +1005,7 @@ function addEventListeners() {
             toggleAdminPanel();
         }
     });
-    
+
     // Add button clicks to video briefing buttons
     const replayBtn = document.getElementById('replay-transmission-button');
     const skipBtn = document.getElementById('skip-video-button');
@@ -1437,8 +1449,11 @@ function savePuzzle() {
         };
     }
     
-    // Save puzzle data to localStorage
-    localStorage.setItem('nrrcPuzzles', JSON.stringify(puzzleData));
+    // Update the specific puzzle in the editedPuzzles array
+    gameState.editedPuzzles[puzzleIndex] = puzzleData;
+    
+    // Save the entire updated array to localStorage
+    localStorage.setItem('nrrcPuzzles', JSON.stringify(gameState.editedPuzzles));
     
     // Reset admin panel
     toggleAdminPanel();
@@ -1520,9 +1535,17 @@ function importPuzzles() {
 
 // Start the actual game
 function startGame() {
+    if (!gameState.hasShownTutorial) {
+        showVideoTutorial();
+        return;
+    }
+    
+    console.log('Starting game with', gameState.editedPuzzles.length, 'puzzles');
+    
     // Hide startup screen, show main screen
     startupScreen.classList.add('hidden');
     mainScreen.classList.remove('hidden');
+    
     // Stop and reset audio if still playing
     const transmissionAudio = document.getElementById('transmission-audio');
     if (transmissionAudio) {
@@ -1531,10 +1554,23 @@ function startGame() {
     }
     // Set game as active
     gameState.isGameActive = true;
-    gameState.startTime = new Date();
+    gameState.startTime = Date.now();
     
     // Initialize the timer - FIX: Pass seconds first, then the gameOver callback
     initTimer(45 * 60, () => gameOver(false));
+    
+    // Reset the terminal header
+    const terminalHeader = document.getElementById('terminal-header');
+    if (terminalHeader) {
+        terminalHeader.textContent = 'MACHINE FIX TERMINAL';
+    }
+    
+    // Make sure we have puzzles before trying to load
+    if (!gameState.editedPuzzles || gameState.editedPuzzles.length === 0) {
+        console.error('No puzzles available! Restoring from original puzzles');
+        gameState.editedPuzzles = [...puzzles];
+        gameState.totalPuzzles = puzzles.length;
+    }
     
     // Load the first puzzle
     loadPuzzle(0);
@@ -1549,11 +1585,11 @@ function startGame() {
     tabContents.forEach(content => content.classList.add('hidden'));
     tabContents[0].classList.remove('hidden');
 
-    // Clear localStorage for a clean state
-    localStorage.removeItem('nrrcPuzzles');
+    // Do not clear localStorage to keep puzzle data persistent
+    // localStorage.removeItem('nrrcPuzzles'); - This line has been removed
 }
 
-// Load a puzzle
+// Load a puzzle (modified to reset and start hint timers)
 function loadPuzzle(index) {
     console.log('Loading puzzle', index);
     // Update the current puzzle indicator
@@ -1562,6 +1598,13 @@ function loadPuzzle(index) {
     const puzzle = gameState.editedPuzzles[index];
     // Clear the terminal
     clearTerminal();
+    
+    // Update the terminal header to include the component name
+    const terminalHeader = document.getElementById('terminal-header');
+    if (terminalHeader) {
+        terminalHeader.textContent = `MACHINE FIX TERMINAL - [${puzzle.componentName.toUpperCase()}]`;
+        console.log('Updated terminal header to include component:', puzzle.componentName.toUpperCase());
+    }
     
     // Add immersive system messages before displaying the puzzle
     const systemMessages = [
@@ -1572,6 +1615,9 @@ function loadPuzzle(index) {
         `> REPAIR MODE INITIATED`,
         `> REACTOR INTEGRITY: ${Math.floor((index / gameState.totalPuzzles) * 100)}%`
     ];
+    
+    // Start hint timers for the new puzzle
+    startHintTimers();
     
     // Display system messages with a typewriter effect
     displaySystemMessages(systemMessages, () => {
@@ -1584,10 +1630,13 @@ function loadPuzzle(index) {
                     // Callback for when puzzle is completed - not used currently,
                     // as the user still needs to enter the passphrase
                 });
+                
+                // Don't start periodic system messages for sorting puzzles
+                stopPeriodicSystemMessages();
+            } else {
+                // Only start periodic system messages for standard puzzles
+                startPeriodicSystemMessages();
             }
-            
-            // Start periodic system messages for immersion
-            startPeriodicSystemMessages();
         });
     });
     
@@ -1636,6 +1685,11 @@ function startPeriodicSystemMessages() {
         // Only show messages if the game is active
         if (!gameState.isGameActive) return;
         
+        // Only show messages if no sorting puzzle is active
+        if (isSortingPuzzleActive && typeof isSortingPuzzleActive === 'function' && isSortingPuzzleActive()) {
+            return;
+        }
+        
         // Random system messages for immersion
         const messages = [
             "> MONITORING CORE TEMPERATURE...",
@@ -1659,8 +1713,8 @@ function startPeriodicSystemMessages() {
         // Pick a random message
         const randomMessage = messages[Math.floor(Math.random() * messages.length)];
         
-        // Display the message
-        appendToTerminalWithFormatting(`\n<span class="system-text">${randomMessage}</span>`);
+        // Display the message at the top of the terminal instead of at the bottom
+        prependSystemMessage(`<span class="system-text">${randomMessage}</span>`);
         
     }, Math.random() * 20000 + 20000); // Random interval between 20-40 seconds
 }
@@ -1733,6 +1787,12 @@ function gameOver(success) {
     // Stop periodic system messages
     stopPeriodicSystemMessages();
     
+    // Reset the terminal header
+    const terminalHeader = document.getElementById('terminal-header');
+    if (terminalHeader) {
+        terminalHeader.textContent = 'MACHINE FIX TERMINAL';
+    }
+    
     // Add a final system message based on success or failure
     if (success) {
         appendToTerminalWithFormatting('\n\n<span class="system-text">&gt; REACTOR STABILIZED</span>');
@@ -1775,8 +1835,15 @@ function handleTerminalSubmit() {
     // Get current puzzle from edited puzzles
     const puzzle = gameState.editedPuzzles[gameState.currentPuzzle];
     
+    // Normalize input and passphrase for comparison - remove spaces, commas, and convert to lowercase
+    const normalizedInput = userInput.toLowerCase().replace(/[\s,]/g, '');
+    const normalizedPassphrase = puzzle.passphrase.toLowerCase().replace(/[\s,]/g, '');
+    
     // Check if the answer is correct
-    if (userInput.toLowerCase() === puzzle.passphrase.toLowerCase()) {
+    if (normalizedInput === normalizedPassphrase) {
+        // Clear hint timers when puzzle is solved
+        clearHintTimers();
+        
         // Play success sound
         soundManager.play('success');
         
@@ -1789,8 +1856,11 @@ function handleTerminalSubmit() {
         // Clear the input
         terminalInput.value = '';
         
+        // Flag to track if we're coming from a sorting puzzle
+        const wasSortingPuzzle = isSortingPuzzleActive && typeof isSortingPuzzleActive === 'function' && isSortingPuzzleActive();
+        
         // Clean up sorting puzzle if active
-        if (isSortingPuzzleActive && typeof isSortingPuzzleActive === 'function' && isSortingPuzzleActive()) {
+        if (wasSortingPuzzle) {
             cleanupSortingPuzzle();
         }
         
@@ -1799,6 +1869,9 @@ function handleTerminalSubmit() {
         typeInTerminal(document.getElementById('terminal-display'), puzzle.successMessage, 10, () => {
             // Add confirmation prompt at the end - using ENTER key instead of typing "continue"
             appendToTerminalWithFormatting('\n\n> COMPONENT REPAIR COMPLETE\n> Press ENTER to continue to the next component...');
+            
+            // Start system messages between puzzles
+            startPeriodicSystemMessages();
             
             // Focus back on the terminal input
             terminalInput.focus();
@@ -1832,6 +1905,9 @@ function handleTerminalSubmit() {
                     if (gameState.currentPuzzle >= gameState.totalPuzzles) {
                         gameOver(true);
                     } else {
+                        // Stop periodic system messages before loading next puzzle
+                        stopPeriodicSystemMessages();
+                        
                         // Load the next puzzle
                         loadPuzzle(gameState.currentPuzzle);
                     }
@@ -1870,6 +1946,9 @@ function handleTerminalSubmit() {
                 if (gameState.currentPuzzle >= gameState.totalPuzzles) {
                     gameOver(true);
                 } else {
+                    // Stop periodic system messages before loading next puzzle
+                    stopPeriodicSystemMessages();
+                    
                     // Load the next puzzle
                     loadPuzzle(gameState.currentPuzzle);
                 }
@@ -2023,26 +2102,37 @@ function handleAssistantSubmit() {
             const hintIndex = Math.min(gameState.hintsUsed, puzzle.hints.length - 1);
             const hint = puzzle.hints[hintIndex];
             
-                // Add some personality to the hint
-                const hintPrefixes = [
-                    "According to my databases, ",
-                    "Hmm, let me access my knowledge banks... ",
-                    "I'm not supposed to be this direct, but ",
-                    "My circuits suggest ",
-                    "ERROR: TOO_HELPFUL. Anyway, "
+            // Add the hint message directly without using addHintToChat
+            // This avoids creating duplicate hint elements when typing "hint"
+            const hintElement = document.createElement('div');
+            hintElement.classList.add('hint-message');
+            hintElement.textContent = hint;
+            
+            // Add to messages container directly
+            assistantMessages.appendChild(hintElement);
+            assistantMessages.scrollTop = assistantMessages.scrollHeight;
+            
+            // Add E.C.H.O.'s commentary after the hint
+            const hintComments = [
+                "Hope that helps! I've included a hint above.",
+                "I've marked the hint clearly above. Let me know if you need more help!",
+                "Check out the hint I've provided above. My circuits suggest it's helpful.",
+                "I've highlighted a hint for you above. Good luck with the puzzle!"
+            ];
+            
+            response = hintComments[Math.floor(Math.random() * hintComments.length)];
+            
+            // Add a random glitch occasionally
+            if (addRandomGlitch) {
+                const glitches = [
+                    "\n\n[HINT DELIVERY PROTOCOL EXECUTED SUCCESSFULLY]",
+                    "\n\n*brief static* Was that too direct? I'm supposed to be more cryptic.",
+                    "\n\nI hope that's useful. My hint algorithms are functioning at 94.7% efficiency today.",
+                    "\n\nFun fact: I'm programmed to enjoy helping. Isn't that weird?"
                 ];
                 
-                const hintPostfixes = [
-                    " That's helpful, right? I can never tell.",
-                    " Hope that helps. If not, I've got more cryptic advice where that came from!",
-                    " Did that make sense? My language model sometimes gets... creative.",
-                    " ...And now I'm supposed to say something witty, but my humor module is overheating.",
-                    " I'm 87.2% certain that's relevant. The other 12.8% thinks it's a recipe for space nachos."
-                ];
-                
-                response = hintPrefixes[Math.floor(Math.random() * hintPrefixes.length)] + 
-                          hint + 
-                          (addJoke ? hintPostfixes[Math.floor(Math.random() * hintPostfixes.length)] : "");
+                response += glitches[Math.floor(Math.random() * glitches.length)];
+            }
             
             // Increment hints used
             gameState.hintsUsed++;
@@ -2116,7 +2206,7 @@ function handleAssistantSubmit() {
             }
             
             // Add random glitches occasionally
-            if (addRandomGlitch) {
+            if (addRandomGlitch && !isAskingForHint) {
                 const glitches = [
                     "\n\n[SYSTEM GLITCH: HUMOR_OVERFLOW_DETECTED]",
                     "\n\n*brief static* Sorry about that. Where were we?",
@@ -2144,6 +2234,78 @@ function handleAssistantSubmit() {
     }, 2000); // 2 second delay
 }
 
+// Function to handle the hint button click
+function handleHintButtonClick() {
+    const assistantMessages = document.getElementById('assistant-messages');
+    
+    if (!assistantMessages) {
+        console.error('Assistant messages container not found');
+        return;
+    }
+    
+    // Get current puzzle from edited puzzles
+    const puzzle = gameState.editedPuzzles[gameState.currentPuzzle];
+    
+    // Show thinking indicator
+    const thinkingElement = document.createElement('div');
+    thinkingElement.classList.add('thinking');
+    thinkingElement.innerHTML = 'E.C.H.O. is locating a hint<span class="thinking-dots"></span>';
+    assistantMessages.appendChild(thinkingElement);
+    assistantMessages.scrollTop = assistantMessages.scrollHeight;
+    
+    // Play hint sound if available
+    if (window.soundManager) {
+        window.soundManager.play('hint');
+    }
+    
+    // Short delay to show thinking animation
+    setTimeout(() => {
+        // Remove thinking indicator
+        if (thinkingElement.parentNode) {
+            assistantMessages.removeChild(thinkingElement);
+        }
+        
+        // Get appropriate hint based on hints used
+        const hintIndex = Math.min(gameState.hintsUsed, puzzle.hints.length - 1);
+        const hint = puzzle.hints[hintIndex];
+        
+        // Create a specially formatted hint message
+        const hintElement = document.createElement('div');
+        hintElement.classList.add('hint-message');
+        hintElement.textContent = hint;
+        
+        // Add to messages container directly
+        assistantMessages.appendChild(hintElement);
+        assistantMessages.scrollTop = assistantMessages.scrollHeight;
+        
+        // Increment hints used
+        gameState.hintsUsed++;
+        
+        // No additional message or addHintToChat call - this avoids the duplicate hint
+    }, 1500);
+}
+
+// Function to add a hint to the chat with special formatting
+function addHintToChat(hint) {
+    const assistantMessages = document.getElementById('assistant-messages');
+    
+    if (!assistantMessages) {
+        console.error('Assistant messages container not found');
+        return;
+    }
+    
+    // Create a specially formatted hint message
+    const hintElement = document.createElement('div');
+    hintElement.classList.add('hint-message');
+    hintElement.textContent = hint;
+    
+    // Add to messages container
+    assistantMessages.appendChild(hintElement);
+    assistantMessages.scrollTop = assistantMessages.scrollHeight;
+    
+    // No sound playback here as it's already handled by the caller
+}
+
 // Global functions for direct HTML access
 // Add these at the end of the file to ensure all functions are defined
 document.addEventListener('DOMContentLoaded', function() {
@@ -2162,10 +2324,126 @@ document.addEventListener('DOMContentLoaded', function() {
         handleTerminalSubmit();
     };
     
+    // Global function for hint button
+    window.globalHintButtonClick = function() {
+        console.log('Global hint button clicked');
+        handleHintButtonClick();
+    };
+    
     // Global function for starting the game
     window.globalStartGame = function() {
         console.log('Global start game called');
         startGame();
+    };
+    
+    // Global function for open transmission button - the minimal solution
+    window.globalOpenTransmission = function() {
+        console.log('Global open transmission called');
+        // Access the setupVideoBriefing function's elements
+        const openBtn = document.getElementById('open-transmission-button');
+        
+        // If button exists, simulate a click on it to trigger the original logic
+        if (openBtn) {
+            // Play button sound
+            if (window.soundManager) window.soundManager.play('button');
+            
+            // Set up the elements needed by the original function
+            const transmissionText = document.getElementById('transmission-text');
+            const transmissionAudio = document.getElementById('transmission-audio');
+            
+            if (transmissionText) {
+                // Hide button
+                openBtn.style.display = 'none';
+                
+                // Show text and enable skipping
+                transmissionText.classList.remove('hidden');
+                const skipBtn = document.getElementById('skip-video-button');
+                if (skipBtn) skipBtn.style.display = 'inline-block';
+                
+                // Try to play the audio
+                if (transmissionAudio) {
+                    transmissionAudio.currentTime = 0;
+                    const playPromise = transmissionAudio.play();
+                    
+                    if (playPromise !== undefined) {
+                        playPromise.catch(e => {
+                            console.error('Audio play failed:', e);
+                            transmissionText.textContent = 'TRANSMISSION AUDIO FAILED TO PLAY. Displaying text only.';
+                        });
+                    }
+                }
+                
+                // Now call the original functionality from setupVideoBriefing
+                // Create or update the transmission text container
+                let container = document.querySelector('.transmission-text-container');
+                if (!container) {
+                    // Create container if it doesn't exist
+                    container = document.createElement('div');
+                    container.className = 'transmission-text-container';
+                    
+                    // Move the transmission text into the container
+                    const parent = transmissionText.parentNode;
+                    parent.insertBefore(container, transmissionText);
+                    container.appendChild(transmissionText);
+                }
+                
+                // Start typewriter effect with the transmission script
+                let idx = 0;
+                const chars = transmissionScript.split('');
+                
+                transmissionText.textContent = '';
+                transmissionText.classList.add('user-scrollable');
+                
+                const interval = setInterval(() => {
+                    if (idx < chars.length) {
+                        transmissionText.textContent += chars[idx];
+                        idx++;
+                        transmissionText.scrollTop = transmissionText.scrollHeight;
+                    } else {
+                        clearInterval(interval);
+                        const replayBtn = document.getElementById('replay-transmission-button');
+                        if (replayBtn) replayBtn.style.display = 'inline-block';
+                    }
+                }, 60);
+            }
+        }
+    };
+    
+    // Global function for skip transmission button
+    window.globalSkipTransmission = function() {
+        console.log('Global skip transmission called');
+        // Play sound
+        if (window.soundManager) window.soundManager.play('button');
+        
+        // Pause any audio that might be playing
+        const transmissionAudio = document.getElementById('transmission-audio');
+        if (transmissionAudio) {
+            transmissionAudio.pause();
+            transmissionAudio.currentTime = 0;
+        }
+        
+        // Clear any intervals that might be running typewriter effects
+        for (let i = 1; i < 10000; i++) {
+            clearInterval(i);
+        }
+        
+        // Show boot sequence
+        const videoBriefingContainer = document.getElementById('video-briefing-container');
+        const bootSequenceContainer = document.getElementById('boot-sequence-container');
+        
+        if (videoBriefingContainer && bootSequenceContainer) {
+            videoBriefingContainer.classList.add('hidden');
+            bootSequenceContainer.classList.remove('hidden');
+            
+            // Call the boot sequence function
+            const bootText = document.getElementById('boot-text');
+            if (bootText) {
+                typeInTerminal(bootText, bootSequenceText, 20, () => {
+                    const startButton = document.getElementById('start-button');
+                    if (startButton) startButton.style.display = 'block';
+                });
+            }
+        }
     };
     
     // Global function for tab switching
@@ -2214,3 +2492,145 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log('Global handler functions initialized');
 });
+
+// Video tutorial elements
+const videoTutorialModal = document.getElementById('video-tutorial-modal');
+const videoTutorialVideo = videoTutorialModal.querySelector('video');
+
+// Function to show video tutorial
+function showVideoTutorial() {
+    videoTutorialModal.style.display = 'flex';
+    videoTutorialVideo.play();
+}
+
+// Function to close video tutorial
+function closeVideoTutorial() {
+    videoTutorialModal.style.display = 'none';
+    videoTutorialVideo.pause();
+    videoTutorialVideo.currentTime = 0;
+    gameState.hasShownTutorial = true;
+}
+
+// Make functions available globally
+window.showVideoTutorial = showVideoTutorial;
+window.closeVideoTutorial = closeVideoTutorial;
+
+// Skip button for video tutorial
+window.skipVideoTutorial = function() {
+    videoTutorialModal.style.display = 'none';
+    videoTutorialVideo.pause();
+    videoTutorialVideo.currentTime = 0;
+    gameState.hasShownTutorial = true;
+    // Start the game immediately
+    // Hide startup screen, show main screen
+    startupScreen.classList.add('hidden');
+    mainScreen.classList.remove('hidden');
+    // Set game as active
+    gameState.isGameActive = true;
+    gameState.startTime = Date.now();
+    // Initialize the timer
+    initTimer(45 * 60, () => gameOver(false));
+    // Reset the terminal header
+    const terminalHeader = document.getElementById('terminal-header');
+    if (terminalHeader) {
+        terminalHeader.textContent = 'MACHINE FIX TERMINAL';
+    }
+    // Make sure we have puzzles before trying to load
+    if (!gameState.editedPuzzles || gameState.editedPuzzles.length === 0) {
+        gameState.editedPuzzles = [...puzzles];
+        gameState.totalPuzzles = puzzles.length;
+    }
+    // Load the first puzzle
+    loadPuzzle(0);
+    // Initialize reactor with first component active
+    updateReactorStatus([], 0);
+    // Reset tab selection
+    tabs.forEach(tab => tab.classList.remove('active'));
+    tabs[0].classList.add('active');
+    tabContents.forEach(content => content.classList.add('hidden'));
+    tabContents[0].classList.remove('hidden');
+};
+
+// Hint modal elements
+const hintModal = document.getElementById('hint-modal');
+const hintModalText = document.getElementById('hint-modal-text');
+
+// Show the hint modal with specified hint text
+function showHintModal(hintText) {
+    // Clear any existing hint timers
+    clearHintTimers();
+    
+    // If there's no hint text or game is not active, don't show anything
+    if (!hintText || !gameState.isGameActive) return;
+    
+    // Update the hint text
+    hintModalText.textContent = hintText;
+    
+    // Show the modal
+    hintModal.style.display = 'flex';
+    
+    // Play hint sound
+    soundManager.play('hint');
+    
+    // Track that we've shown a hint
+    gameState.hintsUsed++;
+    gameState.shownHints++;
+}
+
+// Close the hint modal
+function closeHintModal() {
+    hintModal.style.display = 'none';
+    
+    // Start timers for the next hints if we haven't shown all hints yet
+    const currentPuzzle = gameState.editedPuzzles[gameState.currentPuzzle];
+    if (gameState.shownHints < currentPuzzle.hints.length) {
+        startHintTimers();
+    }
+}
+
+// Clear any existing hint timers
+function clearHintTimers() {
+    gameState.hintTimers.forEach(timer => clearTimeout(timer));
+    gameState.hintTimers = [];
+}
+
+// Start timers for automatic hints
+function startHintTimers() {
+    // Clear any existing timers first
+    clearHintTimers();
+    
+    // Reset puzzle start time
+    gameState.puzzleStartTime = Date.now();
+    
+    // Reset shown hints for this puzzle
+    gameState.shownHints = 0;
+    
+    // Get the current puzzle and its hints
+    const currentPuzzle = gameState.editedPuzzles[gameState.currentPuzzle];
+    if (!currentPuzzle || !currentPuzzle.hints || currentPuzzle.hints.length === 0) return;
+    
+    // Set timers for each hint based on the progressive timing
+    const hintTimes = [
+        Math.floor(Math.random() * (5 * 60000 - 3 * 60000) + 3 * 60000), // 3-5 minutes for first hint
+        Math.floor(Math.random() * (9 * 60000 - 7 * 60000) + 7 * 60000), // 7-9 minutes for second hint
+        Math.floor(Math.random() * (12 * 60000 - 10 * 60000) + 10 * 60000) // 10-12 minutes for third hint
+    ];
+    
+    // Create timers for each available hint
+    for (let i = 0; i < Math.min(hintTimes.length, currentPuzzle.hints.length); i++) {
+        const timer = setTimeout(() => {
+            // Only show the hint if we're still on the same puzzle
+            if (gameState.isGameActive && gameState.shownHints === i) {
+                showHintModal(currentPuzzle.hints[i]);
+            }
+        }, hintTimes[i]);
+        
+        gameState.hintTimers.push(timer);
+    }
+    
+    console.log('Hint timers started for puzzle', gameState.currentPuzzle + 1);
+}
+
+// Make hint modal functions globally available
+window.showHintModal = showHintModal;
+window.closeHintModal = closeHintModal;

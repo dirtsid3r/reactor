@@ -262,4 +262,32 @@ export function appendToTerminal(text) {
     addCursorToTerminal();
     
     terminal.scrollTop = terminal.scrollHeight;
+}
+
+/**
+ * Prepend system messages to the top of the terminal display
+ * @param {string} text - The text to prepend (should be system message)
+ */
+export function prependSystemMessage(text) {
+    const terminal = document.getElementById('terminal-display');
+    
+    // Temporarily remove cursor
+    if (cursorElement) {
+        cursorElement.remove();
+    }
+    
+    // Create a new div for the system message
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'system-message';
+    messageDiv.innerHTML = text;
+    
+    // If terminal has children, insert before the first child
+    if (terminal.firstChild) {
+        terminal.insertBefore(messageDiv, terminal.firstChild);
+    } else {
+        terminal.appendChild(messageDiv);
+    }
+    
+    // Re-add cursor at the end
+    addCursorToTerminal();
 } 

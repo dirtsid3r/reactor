@@ -271,6 +271,26 @@ input, textarea {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 15px;
+}
+
+/* Component name in terminal header */
+.component-name-header {
+    color: #ffcc00;
+    font-weight: bold;
+    display: inline-block;
+    position: relative;
+    text-shadow: 0 0 5px rgba(255, 204, 0, 0.5);
+}
+
+.component-name-header:not(:empty)::before {
+    content: '[ ';
+    color: #00ff66;
+}
+
+.component-name-header:not(:empty)::after {
+    content: ' ]';
+    color: #00ff66;
 }
 
 /* Terminal display */
@@ -346,6 +366,18 @@ input, textarea {
     font-weight: bold;
     text-shadow: 0 0 6px #00ff66cc;
     letter-spacing: 0.5px;
+}
+
+/* System message styling at the top of the terminal */
+.system-message {
+    color: #00ff66;
+    font-weight: bold;
+    text-shadow: 0 0 6px #00ff66cc;
+    letter-spacing: 0.5px;
+    padding: 4px 6px;
+    margin-bottom: 6px;
+    border-left: 3px solid #00ff66;
+    background-color: rgba(0, 20, 0, 0.4);
 }
 
 /* Adjust countdown timer placement and appearance */
@@ -1515,4 +1547,38 @@ body, html, #game-container, .terminal-display, .terminal-header, .terminal-inpu
 }
 .corner-fix, .header-corner {
     display: none !important;
+}
+
+/* Hint button */
+.hint-button {
+    background-color: #002211;
+    margin-right: 8px;
+    border-color: #ffcc00;
+    color: #ffcc00;
+}
+
+.hint-button:hover {
+    background-color: #003322;
+    box-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
+}
+
+/* Hint message styling */
+.hint-message {
+    background-color: rgba(255, 204, 0, 0.1);
+    border-left: 3px solid #ffcc00;
+    padding: 10px 15px;
+    position: relative;
+    margin: 10px 0;
+}
+
+.hint-message::before {
+    content: "HINT";
+    position: absolute;
+    top: -10px;
+    left: 10px;
+    background-color: #000000;
+    color: #ffcc00;
+    font-size: 12px;
+    padding: 2px 8px;
+    border: 1px solid #ffcc00;
 } 

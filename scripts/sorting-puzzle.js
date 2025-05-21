@@ -8,7 +8,10 @@ const sortingPuzzleState = {
     currentPuzzleData: null,
     isActive: false,
     completedCategories: [],
-    revealedCharacters: ""
+    revealedCharacters: "",
+    // Keep track of event listeners for proper cleanup
+    dragItems: [],
+    dropZones: []
 };
 
 /**
@@ -17,10 +20,13 @@ const sortingPuzzleState = {
  * @param {Function} onComplete - Callback for when puzzle is completed
  */
 export function initSortingPuzzle(puzzleData, onComplete) {
+    // Reset state
     sortingPuzzleState.currentPuzzleData = puzzleData;
     sortingPuzzleState.isActive = true;
     sortingPuzzleState.completedCategories = [];
     sortingPuzzleState.revealedCharacters = "";
+    sortingPuzzleState.dragItems = [];
+    sortingPuzzleState.dropZones = [];
     
     // Get the terminal display to insert our puzzle UI
     const terminalDisplay = document.getElementById('terminal-display');
@@ -97,18 +103,47 @@ function initializeDragAndDrop() {
     const items = document.querySelectorAll('.sorting-item');
     const categories = document.querySelectorAll('.sorting-category');
 
+    // Clear any existing event listeners
+    sortingPuzzleState.dragItems.forEach(item => {
+        item.element.removeEventListener('dragstart', item.dragStart);
+        item.element.removeEventListener('dragend', item.dragEnd);
+    });
+    
+    sortingPuzzleState.dropZones.forEach(zone => {
+        zone.element.removeEventListener('dragover', zone.dragOver);
+        zone.element.removeEventListener('dragleave', zone.dragLeave);
+        zone.element.removeEventListener('drop', zone.drop);
+    });
+    
+    // Reset tracking arrays
+    sortingPuzzleState.dragItems = [];
+    sortingPuzzleState.dropZones = [];
+
     // Add drag event listeners to items
     items.forEach(item => {
-        item.addEventListener('dragstart', e => {
+        // Store event handlers to allow proper removal later
+        const dragStart = e => {
             e.dataTransfer.setData('text/plain', item.id);
             item.classList.add('dragging');
             setTimeout(() => {
                 item.style.opacity = '0.7';
             }, 0);
-        });
-        item.addEventListener('dragend', () => {
+        };
+        
+        const dragEnd = () => {
             item.classList.remove('dragging');
             item.style.opacity = '1';
+        };
+        
+        // Add the event listeners
+        item.addEventListener('dragstart', dragStart);
+        item.addEventListener('dragend', dragEnd);
+        
+        // Keep track of items and their handlers
+        sortingPuzzleState.dragItems.push({
+            element: item,
+            dragStart: dragStart,
+            dragEnd: dragEnd
         });
     });
 
@@ -117,16 +152,19 @@ function initializeDragAndDrop() {
         const dropZone = categoryBox.querySelector('.category-dropzone');
         const categoryName = dropZone.dataset.category;
 
-        categoryBox.addEventListener('dragover', e => {
+        // Store event handlers for proper cleanup
+        const dragOver = e => {
             e.preventDefault();
             categoryBox.classList.add('drag-over');
             dropZone.classList.add('drag-over');
-        });
-        categoryBox.addEventListener('dragleave', e => {
+        };
+        
+        const dragLeave = e => {
             categoryBox.classList.remove('drag-over');
             dropZone.classList.remove('drag-over');
-        });
-        categoryBox.addEventListener('drop', e => {
+        };
+        
+        const drop = e => {
             e.preventDefault();
             categoryBox.classList.remove('drag-over');
             dropZone.classList.remove('drag-over');
@@ -136,6 +174,17 @@ function initializeDragAndDrop() {
             // Only allow correct items
             if (item.dataset.category === categoryName) {
                 dropZone.appendChild(item);
+                
+                // Important: Preserve the item's draggable property and ensure it remains functional
+                item.draggable = true;
+                
+                // Reattach drag events to ensure they still work after being moved
+                const dragItem = sortingPuzzleState.dragItems.find(d => d.element.id === itemId);
+                if (dragItem) {
+                    dragItem.element.addEventListener('dragstart', dragItem.dragStart);
+                    dragItem.element.addEventListener('dragend', dragItem.dragEnd);
+                }
+                
                 checkCategoryCompletion(dropZone);
             } else {
                 item.classList.add('error');
@@ -143,6 +192,19 @@ function initializeDragAndDrop() {
                     item.classList.remove('error');
                 }, 500);
             }
+        };
+        
+        // Add the event listeners
+        categoryBox.addEventListener('dragover', dragOver);
+        categoryBox.addEventListener('dragleave', dragLeave);
+        categoryBox.addEventListener('drop', drop);
+        
+        // Keep track of drop zones and their handlers
+        sortingPuzzleState.dropZones.push({
+            element: categoryBox,
+            dragOver: dragOver,
+            dragLeave: dragLeave,
+            drop: drop
         });
     });
 }
@@ -174,6 +236,11 @@ function checkCategoryCompletion(categoryZone) {
             sortingPuzzleState.completedCategories.push(categoryName);
             updateRevealedCharacters();
         }
+        
+        // Ensure items remain draggable for flexibility
+        placedItems.forEach(item => {
+            item.draggable = true;
+        });
     }
 }
 
@@ -219,15 +286,37 @@ function updateRevealedCharacters() {
  * @param {string} type - The type of sound to play
  */
 function playSound(type) {
-    // Sound implementation can be added here if needed
+    // Use global sound manager if available
+    if (window.soundManager && typeof window.soundManager.play === 'function') {
+        window.soundManager.play(type);
+    }
 }
 
 /**
  * Clean up the sorting puzzle
  */
 export function cleanupSortingPuzzle() {
+    // Clean up event listeners
+    sortingPuzzleState.dragItems.forEach(item => {
+        if (item.element) {
+            item.element.removeEventListener('dragstart', item.dragStart);
+            item.element.removeEventListener('dragend', item.dragEnd);
+        }
+    });
+    
+    sortingPuzzleState.dropZones.forEach(zone => {
+        if (zone.element) {
+            zone.element.removeEventListener('dragover', zone.dragOver);
+            zone.element.removeEventListener('dragleave', zone.dragLeave);
+            zone.element.removeEventListener('drop', zone.drop);
+        }
+    });
+    
+    // Reset state
     sortingPuzzleState.isActive = false;
     sortingPuzzleState.currentPuzzleData = null;
+    sortingPuzzleState.dragItems = [];
+    sortingPuzzleState.dropZones = [];
     
     // Remove the puzzle UI
     const puzzleContainer = document.querySelector('.sorting-puzzle-container');
