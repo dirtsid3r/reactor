@@ -19,7 +19,8 @@ const gameState = {
     // Automatic hint system
     puzzleStartTime: null,
     hintTimers: [],
-    shownHints: 0
+    shownHints: 0,
+    waitingForConfirmation: false
 };
 
 // Make gameState available to other modules (for custom icons)
@@ -315,95 +316,117 @@ const soundManager = {
     // Play a sound
     play(key) {
         if (!this.initialized) {
-            console.warn('Sound manager not initialized');
+            console.warn('Sound manager not initialized, attempting to initialize...');
+            this.init();
             return false;
         }
         
-        if (!this.unlocked && key !== 'hum') {
-            console.warn('Audio not unlocked yet');
-            return false;
+        if (this.context.state === 'suspended') {
+            // Try to resume context if suspended
+            this.context.resume().then(() => {
+                this.unlocked = true;
+                this.playSound(key);
+            }).catch(e => {
+                console.warn('Failed to resume audio context:', e);
+                this.playBackup(key);
+            });
+            return;
         }
         
-        // Special handling for hum (background loop)
-        if (key === 'hum') {
-            return this.playHum();
-        }
-        
-        // Check if the sound buffer exists
-        if (!this.buffers[key]) {
-            console.warn(`Sound ${key} not loaded yet`);
-            // Try to load it
-            if (soundFiles[key]) {
-                this.loadSound(key, soundFiles[key]);
-            }
-            return false;
-        }
-        
+        this.playSound(key);
+    },
+    
+    playSound(key) {
         try {
-            // Handle backup audio
-            if (this.buffers[key].isBackup) {
-                const backupAudio = this.buffers[key].backupAudio;
-                if (backupAudio) {
-                    backupAudio.currentTime = 0;
-                    backupAudio.play().catch(e => {
-                        console.warn(`Failed to play backup sound ${key}:`, e);
-                    });
+            // Always ensure keystroke sound works, even with fallback
+            if (key === 'keystroke' && (!this.buffers[key] || !this.unlocked)) {
+                // Create a simple click sound as fallback
+                if (this.context && this.unlocked) {
+                    const oscillator = this.context.createOscillator();
+                    const gainNode = this.context.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.masterGain || this.context.destination);
+                    
+                    oscillator.frequency.setValueAtTime(800, this.context.currentTime);
+                    gainNode.gain.setValueAtTime(0.1, this.context.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + 0.1);
+                    
+                    oscillator.start(this.context.currentTime);
+                    oscillator.stop(this.context.currentTime + 0.1);
+                    return;
                 }
-                return true;
             }
             
-            // Handle empty buffers
-            if (this.buffers[key].isEmpty) {
-                console.warn(`Cannot play empty sound ${key}`);
+            const buffer = this.buffers[key];
+            if (!buffer) {
+                console.warn(`Sound buffer not found for: ${key}`);
+                this.playBackup(key);
                 return false;
             }
             
-            // Create a new source for this sound
-            const source = this.context.createBufferSource();
-            source.buffer = this.buffers[key];
-            
-            // Create a gain node for this specific sound
-            const gainNode = this.context.createGain();
-            
-            // Set volume based on sound type
-            let volume = 0.5;
-            if (key === 'tick') {
-                volume = 0.38;
-            } else if (key === 'keystroke') {
-                volume = 0.28;
-            } else if (key === 'button') {
-                volume = 0.32;
-            } else if (key === 'success') {
-                volume = 0.38;
-            } else if (key === 'error') {
-                volume = 0.38;
-            } else if (key === 'hint') {
-                volume = 0.32;
-            } else if (key === 'timer') {
-                volume = 0.15; // Lower volume for timer sound
+            // Stop any existing source for this sound (except hum)
+            if (this.sources[key] && key !== 'hum') {
+                try {
+                    this.sources[key].stop();
+                } catch (e) {
+                    // Source might already be stopped
+                }
             }
             
-            // Set the gain value
-            gainNode.gain.value = volume;
+            // Create new source
+            const source = this.context.createBufferSource();
+            source.buffer = buffer;
             
-            // Connect the source to gain, and gain to master
+            // Create gain node for volume control
+            const gainNode = this.context.createGain();
             source.connect(gainNode);
-            gainNode.connect(this.masterGain);
+            
+            if (key === 'hum') {
+                // Connect hum to dedicated gain
+                gainNode.connect(this.humGain || this.masterGain || this.context.destination);
+                gainNode.gain.value = 1;
+                source.loop = true;
+                this.humSource = source;
+            } else {
+                // Connect other sounds to master gain
+                gainNode.connect(this.masterGain || this.context.destination);
+                gainNode.gain.value = key === 'keystroke' ? 0.3 : 0.7; // Lower keystroke volume
+            }
+            
+            // Store reference
+            this.sources[key] = source;
             
             // Start playing
             source.start(0);
-            console.log(`Playing sound: ${key}`);
             
-            // Clean up when done
-            source.onended = () => {
-                source.disconnect();
-                gainNode.disconnect();
-            };
+            // Clean up source reference when finished (except for looping hum)
+            if (key !== 'hum') {
+                source.onended = () => {
+                    if (this.sources[key] === source) {
+                        delete this.sources[key];
+                    }
+                };
+            }
             
             return true;
         } catch (e) {
             console.error(`Error playing sound ${key}:`, e);
+            this.playBackup(key);
             return false;
+        }
+    },
+    
+    playBackup(key) {
+        // Try HTML5 audio as backup
+        try {
+            const audio = new Audio(soundFiles[key]);
+            audio.volume = key === 'keystroke' ? 0.3 : 0.7;
+            audio.play().catch(e => {
+                console.warn(`Backup audio failed for ${key}:`, e);
+            });
+        } catch (e) {
+            console.warn(`All audio methods failed for ${key}:`, e);
         }
     },
     
@@ -837,15 +860,15 @@ function showBootSequence() {
         transmissionAudio.currentTime = 0;
     }
     videoBriefingContainer.classList.add('hidden');
-    bootSequenceContainer.classList.remove('hidden');
-    startBootSequence();
+    
+    // Skip the boot sequence and go directly to the game (video tutorial)
+    startGame();
 }
 
-// Start the boot sequence animation
+// Start the boot sequence animation (now simplified to just start the game)
 function startBootSequence() {
-    typeInTerminal(bootText, bootSequenceText, 20, () => {
-        startButton.style.display = 'block';
-    });
+    // Directly start the game instead of showing boot text
+    startGame();
 }
 
 // Add event listeners
@@ -937,13 +960,17 @@ function addEventListeners() {
     
     // Terminal input - Add keypress sound
     if (terminalInput) {
-    terminalInput.addEventListener('keypress', (e) => {
+        // Define the main keypress handler
+        const mainKeypressHandler = (e) => {
             soundManager.play('keystroke');
-        if (e.key === 'Enter') {
-            handleTerminalSubmit();
-        }
-    });
-    
+            if (e.key === 'Enter') {
+                handleTerminalSubmit();
+            }
+        };
+        
+        // Add event listener
+        terminalInput.addEventListener('keypress', mainKeypressHandler);
+        
         // Secret reset shortcut - Enter 'resetgame' in terminal
         terminalInput.addEventListener('input', checkForSecretCodes);
     } else {
@@ -1535,29 +1562,31 @@ function importPuzzles() {
 
 // Start the actual game
 function startGame() {
-    if (!gameState.hasShownTutorial) {
-        showVideoTutorial();
-        return;
-    }
+    // First show the video tutorial
+    showVideoTutorial();
     
-    console.log('Starting game with', gameState.editedPuzzles.length, 'puzzles');
+    // The rest of the game initialization will happen after the tutorial is closed
+    // (this is handled by the skipVideoTutorial and closeVideoTutorial functions)
+}
+
+// Function to actually start the game after tutorial
+function startGameAfterTutorial() {
+    // Reset game state
+    gameState.currentPuzzle = 0;
+    gameState.hintsUsed = 0;
+    gameState.isGameActive = true;
+    gameState.startTime = Date.now();
+    gameState.waitingForConfirmation = false; // Reset confirmation state
+    
+    // Clear any existing hint timers
+    clearHintTimers();
     
     // Hide startup screen, show main screen
     startupScreen.classList.add('hidden');
     mainScreen.classList.remove('hidden');
     
-    // Stop and reset audio if still playing
-    const transmissionAudio = document.getElementById('transmission-audio');
-    if (transmissionAudio) {
-        transmissionAudio.pause();
-        transmissionAudio.currentTime = 0;
-    }
-    // Set game as active
-    gameState.isGameActive = true;
-    gameState.startTime = Date.now();
-    
-    // Initialize the timer - FIX: Pass seconds first, then the gameOver callback
-    initTimer(45 * 60, () => gameOver(false));
+    // Initialize the timer
+    initTimer(45 * 60, () => gameOver(false)); // 45 minutes
     
     // Reset the terminal header
     const terminalHeader = document.getElementById('terminal-header');
@@ -1567,9 +1596,13 @@ function startGame() {
     
     // Make sure we have puzzles before trying to load
     if (!gameState.editedPuzzles || gameState.editedPuzzles.length === 0) {
-        console.error('No puzzles available! Restoring from original puzzles');
         gameState.editedPuzzles = [...puzzles];
         gameState.totalPuzzles = puzzles.length;
+    }
+    
+    // Update total puzzles display
+    if (totalPuzzlesElement) {
+        totalPuzzlesElement.textContent = gameState.totalPuzzles.toString().padStart(2, '0');
     }
     
     // Load the first puzzle
@@ -1581,12 +1614,16 @@ function startGame() {
     // Reset tab selection
     tabs.forEach(tab => tab.classList.remove('active'));
     tabs[0].classList.add('active');
-    
     tabContents.forEach(content => content.classList.add('hidden'));
     tabContents[0].classList.remove('hidden');
-
-    // Do not clear localStorage to keep puzzle data persistent
-    // localStorage.removeItem('nrrcPuzzles'); - This line has been removed
+    
+    // Ensure terminal input has focus
+    const terminalInput = document.getElementById('terminal-input');
+    if (terminalInput) {
+        setTimeout(() => {
+            terminalInput.focus();
+        }, 100);
+    }
 }
 
 // Load a puzzle (modified to reset and start hint timers)
@@ -1822,16 +1859,53 @@ function gameOver(success) {
             // Show failure screen
             failureScreen.classList.remove('hidden');
         }
-    }, 3000); // 3 second delay before showing final screen
+    }, 1000); // 1 second delay before showing final screen
 }
 
 // Handle terminal submit
 function handleTerminalSubmit() {
     const userInput = terminalInput.value.trim();
-    soundManager.play('keystroke');
     
-    if (userInput === '') return;
+    // Always play keystroke sound for any input
+    if (userInput !== '') {
+        soundManager.play('keystroke');
+    }
     
+    // Allow empty input only in confirmation mode (when user just presses Enter)
+    if (userInput === '' && !gameState.waitingForConfirmation) {
+        return;
+    }
+    
+    // Check if we're in confirmation mode (waiting for Enter after puzzle success)
+    if (gameState.waitingForConfirmation) {
+        // Any input in confirmation mode advances to next puzzle
+        gameState.waitingForConfirmation = false;
+        
+        // Clear the input
+        terminalInput.value = '';
+        
+        // Play button sound
+        soundManager.play('button');
+        
+        // Update the reactor status
+        gameState.currentPuzzle++;
+        updateReactorProgress();
+        
+        // Check if all puzzles are solved
+        if (gameState.currentPuzzle >= gameState.totalPuzzles) {
+            gameOver(true);
+        } else {
+            // Stop periodic system messages before loading next puzzle
+            stopPeriodicSystemMessages();
+            
+            // Load the next puzzle
+            loadPuzzle(gameState.currentPuzzle);
+        }
+        return;
+    }
+    
+    console.log('Normal puzzle solving mode');
+    // Normal puzzle solving mode
     // Get current puzzle from edited puzzles
     const puzzle = gameState.editedPuzzles[gameState.currentPuzzle];
     
@@ -1839,8 +1913,16 @@ function handleTerminalSubmit() {
     const normalizedInput = userInput.toLowerCase().replace(/[\s,]/g, '');
     const normalizedPassphrase = puzzle.passphrase.toLowerCase().replace(/[\s,]/g, '');
     
+    console.log('normalizedInput:', normalizedInput);
+    console.log('normalizedPassphrase:', normalizedPassphrase);
+    
+    // Strict check - ensure the whole answer is correct, not just part of it
+    const isCorrect = normalizedInput === normalizedPassphrase;
+    console.log('isCorrect:', isCorrect);
+    
     // Check if the answer is correct
-    if (normalizedInput === normalizedPassphrase) {
+    if (isCorrect) {
+        console.log('Correct answer - processing success');
         // Clear hint timers when puzzle is solved
         clearHintTimers();
         
@@ -1867,97 +1949,24 @@ function handleTerminalSubmit() {
         // Update terminal with success message
         clearTerminal();
         typeInTerminal(document.getElementById('terminal-display'), puzzle.successMessage, 10, () => {
-            // Add confirmation prompt at the end - using ENTER key instead of typing "continue"
+            // Add confirmation prompt at the end
             appendToTerminalWithFormatting('\n\n> COMPONENT REPAIR COMPLETE\n> Press ENTER to continue to the next component...');
             
             // Start system messages between puzzles
             startPeriodicSystemMessages();
             
-            // Focus back on the terminal input
-            terminalInput.focus();
+            // Set confirmation mode and focus back on terminal
+            console.log('Setting waitingForConfirmation to true');
+            gameState.waitingForConfirmation = true;
             
-            // Disable normal terminal submission temporarily
-            const originalSubmitHandler = terminalInput.onkeypress;
-            terminalInput.onkeypress = null;
-            
-            // Create one-time event listener for the confirmation
-            const confirmationHandler = function(e) {
-                if (e.key === 'Enter') {
-                    // Remove this event listener once confirmed
-                    terminalInput.removeEventListener('keypress', confirmationHandler);
-                    
-                    // Restore original handler if there was one
-                    if (originalSubmitHandler) {
-                        terminalInput.onkeypress = originalSubmitHandler;
-                    }
-                    
-                    // Clear the input
-                    terminalInput.value = '';
-                    
-                    // Play button sound
-                    soundManager.play('button');
-                    
-                    // Update the reactor status
-                    gameState.currentPuzzle++;
-                    updateReactorProgress();
-                    
-                    // Check if all puzzles are solved
-                    if (gameState.currentPuzzle >= gameState.totalPuzzles) {
-                        gameOver(true);
-                    } else {
-                        // Stop periodic system messages before loading next puzzle
-                        stopPeriodicSystemMessages();
-                        
-                        // Load the next puzzle
-                        loadPuzzle(gameState.currentPuzzle);
-                    }
-                    
-                    // Prevent default Enter behavior
-                    e.preventDefault();
-                    return false;
-                }
-            };
-            
-            // Add temporary event listener for confirmation
-            terminalInput.addEventListener('keypress', confirmationHandler);
-            
-            // Also update the submit button to handle the confirmation
-            const submitClickHandler = function() {
-                // Remove event listeners
-                terminalInput.removeEventListener('keypress', confirmationHandler);
-                terminalSubmit.removeEventListener('click', submitClickHandler);
-                
-                // Restore original handler if there was one
-                if (originalSubmitHandler) {
-                    terminalInput.onkeypress = originalSubmitHandler;
-                }
-                
-                // Clear the input
-                terminalInput.value = '';
-                
-                // Play button sound
-                soundManager.play('button');
-                
-                // Update the reactor status
-                gameState.currentPuzzle++;
-                updateReactorProgress();
-                
-                // Check if all puzzles are solved
-                if (gameState.currentPuzzle >= gameState.totalPuzzles) {
-                    gameOver(true);
-                } else {
-                    // Stop periodic system messages before loading next puzzle
-                    stopPeriodicSystemMessages();
-                    
-                    // Load the next puzzle
-                    loadPuzzle(gameState.currentPuzzle);
-                }
-            };
-            
-            // Add temporary event listener for submit button
-            terminalSubmit.addEventListener('click', submitClickHandler);
+            // Ensure terminal input has focus
+            setTimeout(() => {
+                terminalInput.focus();
+                console.log('Terminal input focused, waitingForConfirmation:', gameState.waitingForConfirmation);
+            }, 100);
         });
     } else {
+        console.log('Incorrect answer - showing error');
         // Play error sound
         soundManager.play('error');
         
@@ -1967,11 +1976,22 @@ function handleTerminalSubmit() {
             document.getElementById('terminal-display').classList.remove('error-shake');
         }, 500);
         
-        // Show error message
-        appendToTerminalWithFormatting('\n\n> ERROR: Invalid passphrase. Please try again.');
+        // Check if input is too short to be valid
+        if (normalizedInput.length < Math.floor(normalizedPassphrase.length * 0.75)) {
+            appendToTerminalWithFormatting('\n\n> ERROR: Invalid passphrase. Your answer seems incomplete.');
+        } 
+        // Check if input has unwanted extra characters
+        else if (normalizedInput.length > normalizedPassphrase.length * 1.25) {
+            appendToTerminalWithFormatting('\n\n> ERROR: Invalid passphrase. Your answer contains excessive text.');
+        }
+        // Default error message
+        else {
+            appendToTerminalWithFormatting('\n\n> ERROR: Invalid passphrase. Please try again.');
+        }
         
-        // Clear the input
+        // Clear the input and restore focus
         terminalInput.value = '';
+        terminalInput.focus();
     }
 }
 
@@ -2427,23 +2447,14 @@ document.addEventListener('DOMContentLoaded', function() {
             clearInterval(i);
         }
         
-        // Show boot sequence
+        // Hide video briefing and go directly to the game (video tutorial)
         const videoBriefingContainer = document.getElementById('video-briefing-container');
-        const bootSequenceContainer = document.getElementById('boot-sequence-container');
-        
-        if (videoBriefingContainer && bootSequenceContainer) {
+        if (videoBriefingContainer) {
             videoBriefingContainer.classList.add('hidden');
-            bootSequenceContainer.classList.remove('hidden');
-            
-            // Call the boot sequence function
-            const bootText = document.getElementById('boot-text');
-            if (bootText) {
-                typeInTerminal(bootText, bootSequenceText, 20, () => {
-                    const startButton = document.getElementById('start-button');
-                    if (startButton) startButton.style.display = 'block';
-                });
-            }
         }
+        
+        // Start the game directly (which shows video tutorial)
+        startGame();
     };
     
     // Global function for tab switching
@@ -2509,6 +2520,9 @@ function closeVideoTutorial() {
     videoTutorialVideo.pause();
     videoTutorialVideo.currentTime = 0;
     gameState.hasShownTutorial = true;
+    
+    // Start the actual game
+    startGameAfterTutorial();
 }
 
 // Make functions available globally
@@ -2521,34 +2535,9 @@ window.skipVideoTutorial = function() {
     videoTutorialVideo.pause();
     videoTutorialVideo.currentTime = 0;
     gameState.hasShownTutorial = true;
-    // Start the game immediately
-    // Hide startup screen, show main screen
-    startupScreen.classList.add('hidden');
-    mainScreen.classList.remove('hidden');
-    // Set game as active
-    gameState.isGameActive = true;
-    gameState.startTime = Date.now();
-    // Initialize the timer
-    initTimer(45 * 60, () => gameOver(false));
-    // Reset the terminal header
-    const terminalHeader = document.getElementById('terminal-header');
-    if (terminalHeader) {
-        terminalHeader.textContent = 'MACHINE FIX TERMINAL';
-    }
-    // Make sure we have puzzles before trying to load
-    if (!gameState.editedPuzzles || gameState.editedPuzzles.length === 0) {
-        gameState.editedPuzzles = [...puzzles];
-        gameState.totalPuzzles = puzzles.length;
-    }
-    // Load the first puzzle
-    loadPuzzle(0);
-    // Initialize reactor with first component active
-    updateReactorStatus([], 0);
-    // Reset tab selection
-    tabs.forEach(tab => tab.classList.remove('active'));
-    tabs[0].classList.add('active');
-    tabContents.forEach(content => content.classList.add('hidden'));
-    tabContents[0].classList.remove('hidden');
+    
+    // Start the actual game
+    startGameAfterTutorial();
 };
 
 // Hint modal elements
@@ -2580,6 +2569,15 @@ function showHintModal(hintText) {
 // Close the hint modal
 function closeHintModal() {
     hintModal.style.display = 'none';
+    
+    // Restore focus to terminal input immediately
+    const terminalInput = document.getElementById('terminal-input');
+    if (terminalInput) {
+        // Use setTimeout to ensure modal is fully closed before focusing
+        setTimeout(() => {
+            terminalInput.focus();
+        }, 100);
+    }
     
     // Start timers for the next hints if we haven't shown all hints yet
     const currentPuzzle = gameState.editedPuzzles[gameState.currentPuzzle];
@@ -2634,3 +2632,82 @@ function startHintTimers() {
 // Make hint modal functions globally available
 window.showHintModal = showHintModal;
 window.closeHintModal = closeHintModal;
+
+// Function to reset the game
+function resetGame() {
+    // Stop the timer
+    if (typeof stopTimer === 'function') {
+        stopTimer();
+    }
+    
+    // Clear all timers
+    clearHintTimers();
+    stopPeriodicSystemMessages();
+    
+    // Reset game state
+    gameState.currentPuzzle = 0;
+    gameState.hintsUsed = 0;
+    gameState.isGameActive = false;
+    gameState.startTime = null;
+    gameState.endTime = null;
+    gameState.waitingForConfirmation = false;
+    gameState.shownHints = 0;
+    gameState.puzzleStartTime = null;
+    
+    // Clean up sorting puzzle if active
+    if (typeof cleanupSortingPuzzle === 'function') {
+        cleanupSortingPuzzle();
+    }
+    
+    // Clear terminal
+    if (typeof clearTerminal === 'function') {
+        clearTerminal();
+    }
+    
+    // Reset reactor status
+    if (typeof updateReactorStatus === 'function') {
+        updateReactorStatus([], 0);
+    }
+    
+    // Show startup screen, hide others
+    startupScreen.classList.remove('hidden');
+    mainScreen.classList.add('hidden');
+    successScreen.classList.add('hidden');
+    failureScreen.classList.add('hidden');
+    
+    // Reset video briefing state
+    const videoBriefingContainer = document.getElementById('video-briefing-container');
+    const bootSequenceContainer = document.getElementById('boot-sequence-container');
+    const transmissionText = document.getElementById('transmission-text');
+    const replayBtn = document.getElementById('replay-transmission-button');
+    const skipBtn = document.getElementById('skip-video-button');
+    const startButton = document.getElementById('start-button');
+    
+    if (videoBriefingContainer) videoBriefingContainer.classList.remove('hidden');
+    if (bootSequenceContainer) bootSequenceContainer.classList.add('hidden');
+    if (transmissionText) transmissionText.classList.add('hidden');
+    if (replayBtn) replayBtn.style.display = 'none';
+    if (skipBtn) skipBtn.style.display = 'none';
+    if (startButton) startButton.style.display = 'none';
+    
+    // Stop any playing audio
+    const transmissionAudio = document.getElementById('transmission-audio');
+    if (transmissionAudio) {
+        transmissionAudio.pause();
+        transmissionAudio.currentTime = 0;
+    }
+    
+    // Clear input fields
+    const terminalInput = document.getElementById('terminal-input');
+    const assistantInput = document.getElementById('assistant-input');
+    if (terminalInput) terminalInput.value = '';
+    if (assistantInput) assistantInput.value = '';
+    
+    // Clear chat messages
+    const assistantMessages = document.getElementById('assistant-messages');
+    if (assistantMessages) {
+        assistantMessages.innerHTML = '';
+    }
+    
+    console.log('Game reset complete');
+}

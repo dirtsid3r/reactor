@@ -1,0 +1,11 @@
+# Individual Reflection: NRRC Escape Room Project
+
+Reflecting on our escape room project, I've gained valuable insights into the intersection of education and entertainment. Our design thinking approach proved particularly effective, with the empathy phase revealing crucial insights about how participants absorb information in high-pressure, time-constrained environments. Observing users attempt to solve puzzles while simultaneously processing sustainability concepts provided a fascinating window into experiential learning.
+
+During our ideation phase, we generated diverse approaches to embedding educational content within gameplay. Some concepts were certainly more practical than others—I recall a particularly enthusiastic debate about a musical component that ultimately didn't align with our objectives. Through methodical prototyping and user testing, we discovered that sustainability facts integrated naturally within the narrative resonated more effectively than direct presentation. One participant notably mentioned still contemplating carbon capture technologies days after their experience.
+
+The testing phase revealed unexpected challenges in our initial designs. A memorable moment occurred when a test group completely overlooked what we had considered an obvious clue in the reactor puzzle sequence, prompting significant redesign. These insights proved invaluable in refining the experience.
+
+The final implementation achieves what I consider a meaningful balance. Players become genuinely invested in the crisis scenario while absorbing key concepts about sustainable energy technologies without explicit instruction.
+
+I find particular satisfaction in creating an experience that demonstrates how educational content can be engaging rather than tedious. By thoughtfully designing the user experience, we've developed an effective vehicle for environmental awareness that maintains the intrinsic enjoyment of gameplay—demonstrating that learning and engagement need not be mutually exclusive. 

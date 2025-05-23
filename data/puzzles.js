@@ -3,14 +3,13 @@ export const puzzles = [
   // P001
     {
     componentName: "Blocking Generator",
-    initialMessage: `The reactor's intake system is blocked because it can't identify the main pollutant it's supposed to capture.\nThe sensors are confused. You need to figure out what the reactor needs to capture.\n\nThere is a hidden message for you that can help you`,
+    initialMessage: `The reactor's intake system is blocked because it can't identify the main pollutant it's supposed to capture.\nThe sensors are confused. You need to figure out what the reactor needs to capture.\n\nThere is a hidden message for you that can help you identify the 2 word passphrase`,
     passphrase: "carbon footprint",
     successMessage: `You got it! You have identified the invisible mark: the carbon footprint. This is the total amount of greenhouse gases; like carbon dioxide, methane, and nitrous oxide emitted by a person or organization. It's measured in kilograms, and by tracking this, we can see who the biggest contributors are and how our actions impact the planet.\n\nKnow the sensors know what the generator needs to capture`,
         hints: [
-      "There are clues in the letter look carefully. Pay attention to the red colour.",
-      "There is something in the room that help is see things bigger",
-      "The letter has the answer in it, look at the icons",
-      "Is that a human trace?"
+      "There is something in the room that help you see things bigger",
+      "I see a chemical element",
+      "I see something in red, take a closer look."
     ],
     puzzleType: "standard"
   },
@@ -31,7 +30,7 @@ export const puzzles = [
       instructions: "Sort the hidden costs into their correct categories to reveal the passphrase.",
             categories: [
         { name: "Clothing", revealedCharacters: "HID", items: ["Toxic chemicals", "Water use", "Microplastic pollution"] },
-        { name: "Technology services", revealedCharacters: "DEN", items: ["Water cooling", "Fossil Fuel", "Ecological Waste", "Mining extraction"] },
+        { name: "Technology services", revealedCharacters: "DEN", items: ["Water cooling", "Fossil Fuel", "Electronic waste", "Mining extraction"] },
         { name: "Food", revealedCharacters: "COS", items: ["Deforestation", "Methane emission", "Land use", "Biodiversity loss"] },
         { name: "Transportation", revealedCharacters: "TS", items: ["Fossil Fuel"] }
             ],
@@ -41,7 +40,7 @@ export const puzzles = [
         { id: "item3", name: "Microplastic pollution", category: "Clothing" },
         { id: "item4", name: "Water cooling", category: "Technology services" },
         { id: "item5", name: "Fossil Fuel", category: "Technology services" },
-        { id: "item6", name: "Ecological Waste", category: "Technology services" },
+        { id: "item6", name: "Electronic waste", category: "Technology services" },
         { id: "item7", name: "Mining extraction", category: "Technology services" },
         { id: "item8", name: "Deforestation", category: "Food" },
         { id: "item9", name: "Methane emission", category: "Food" },
@@ -53,7 +52,7 @@ export const puzzles = [
   },
   // P003 - Updated to be the old P004 (Gridtown Energy)
     {
-    componentName: "Power Plant Leak",
+    componentName: "Gridtown Energy",
     initialMessage: `Welcome to Gridtown, where the future runs on clean energy—if it can be predicted right.
 The city's weather patterns determine how much solar, wind, and hydro power is generated each day.
 But the energy forecast system has crashed, and only you can reboot it.
@@ -62,24 +61,26 @@ Study the weather calendar, use your logic, and calculate the total energy to re
     successMessage: `Power restored!
 Gridtown lights up once more, thanks to your weather-wise calculations. You've shown how clean energy depends not just on technology, but on understanding nature's rhythm. The forecast is clear: a brighter, greener future!`,
         hints: [
-      "Golden beams upon the land,\nFive units by the sun's hand.\nCount the days it shines so bright,\nAnd multiply to set it right.",
-      "When the trees sway and air hums low,\nThree units come with every blow.\nTally the gusts, be swift, be clever,\nThen use your sum to power forever."
+      "Look for machines that are on but not working.",
+      "Tiny lights and screens are clues!"
     ],
     puzzleType: "standard"
   },
   // P004 - Updated to be the old P008 (Recycling Kingdom)
     {
-    componentName: "Recycling Relay",
+    componentName: "Recycling Kingdom",
     initialMessage: `Welcome to the Recycling Kingdom, brave sorter!
 The Royal Sorting System has broken down, and chaos looms—banana peels mix with plastic bottles, and mirrors lie where compost should be.
 Your mission: restore order by placing each item in its rightful bin—Recyclables, Compost, or Trash.
 Choose wisely—only the sharp-eyed and eco-wise will prevail!`,
-    passphrase: "29 48 36",
+    passphrase: "48 36 29",
     successMessage: `You did it! The Recycling Kingdom rejoices—waste is sorted, nature breathes again, and harmony is restored.
 Thanks to your wise choices, trash finds its place and the cycle continues. Reduce. Reuse. Rejoice!`,
         hints: [
-      "I'm green at heart and break down fast,\nFrom nature I come, to nature I'll pass.\nIf you'd toss me in soil, I'd nourish with pride—\nFind where I go, I won't try to hide.",
-      "Shiny or clear, I'm melted anew,\nA second life is what I pursue.\nI'm not for the bin that ends in a pit,\nPlace me where I'll be remade to fit."
+      "If you can eat it, it belongs to nature.",
+      "Can't be reused, can't rot away, This trash is doomed to ever stay.",
+      "From nature born, to soil returned, In compost bins, their rest is earned.",
+      "From every bin, pick low and high — Six digits then will meet your eye."
     ],
     puzzleType: "standard"
   },
@@ -90,41 +91,42 @@ Thanks to your wise choices, trash finds its place and the cycle continues. Redu
     passphrase: "NET ZERO",
     successMessage: `Congratulations, delegates! You've successfully uncovered the global mission: NET ZERO. Together, you've decoded the path toward a carbon-neutral future. This is not the end — it's the beginning of climate action.`,
         hints: [
-      "Each country's strengths are visible — but its problems are hidden in plain sight.",
-      "Only one problem card truly fits each country's hidden challenge. Don't be fooled by surface similarities.",
-      "If the letters don't make sense, your match may be wrong. The correct alignment reveals the true message."
+      "Each country card must be matched with its corresponding improvement card.",
+      "The correct pairings are all mentioned in the Delegates' Discussion Notes.",
+      "The correct sequence follows the order in the meeting record.",
+      "The final solution reveals two words."
     ],
     puzzleType: "standard"
   },
   // P006
     {
-    componentName: "Water Components",
+    componentName: "Water Use",
     initialMessage: `From heaven's tears to your daily needs, Some choices drain more than others indeed. To unlock the secrets that I withhold, Arrange nature's thirst from large to small. Enter the order as the passphrase below.`,
-    passphrase: "Beef, Burger, Milk, Toast, Coffee, Tea",
+    passphrase: "Beef, Burger, Milk, Coffee, Toast, Tea",
     successMessage: `Well done! You've unlocked the water use values - a vital step in understanding how much water goes into everyday items. Remember, water is a precious resource, and excessive use strains our rivers, lakes, and communities. By being mindful of water consumption, we can protect ecosystems and ensure clean water for everyone, now and in the future. Keep making choices that save water and support a sustainable planet!`,
         hints: [
-      "It flows from your tap, fills your kettle, and keeps gardens green. What precious resource should we never take for granted?",
-      "Not all colors are just pretty-they carry meaning and numbers too. What could each shade be trying to tell you?",
-      "Each item card has a color-each color has its own spot on the color wheel, and that spot holds a number. Match the color to its place on the wheel to discover how many litres of water are used!"
+      "There is no calculations. Maybe just giving values",
+      "The colors represent something.",
+      "The numbers go in the place of colors"
     ],
     puzzleType: "standard"
   },
   // P007
     {
-    componentName: "Hidden Content",
+    componentName: "Reveal",
     initialMessage: `Welcome to the Greenwashing Challenge!\nToday, you'll explore the world of eco-friendly claims and discover how some products might not be as green as they appear. Your mission is to look closely, think critically, and uncover hidden truths. Keep your eyes open-sometimes what you see on the surface isn't the full story. Ready to reveal what's really behind the labels? Let's get started!`,
     passphrase: "140SYNTHETICLIES",
     successMessage: `Congratulations! You've uncovered the hidden messages behind the 'eco-friendly' claims. Remember, not everything labeled 'green' or 'sustainable' is what it seems. Always look for real evidence, not just clever marketing, when making choices for the planet.`,
         hints: [
-      "Some claims shine only under closer inspection. Maybe you need a special tool to reveal the truth!",
-      "Sometimes the truth is hidden just out of sight-try looking where shadows fall and secrets hide beneath your feet.",
-      "Look carefully at the underlined words. Once you have them, enter all the underlined words together as one continuous word-no spaces or punctuation. This will fix the component."
+      "The product names have clues to a hidden tool",
+      "Look Under the table",
+      "Underlined words go together."
     ],
     puzzleType: "standard"
   },
   // P008 - AI Overlord
     {
-    componentName: "AI Overlord",
+    componentName: "AI Overload",
     initialMessage: `The generator is down and must be rebooted! You need to gain access to the central control server to fix the generator. The engineers have gone, but they left a note with this message -
 
 "<span style="color:blue">Pr</span>aise be t<span style="color:blue">o</span> thought with silicon born,
@@ -133,13 +135,16 @@ It listens and learns, a tireless guide,
 With questions it thrives, with nothing to hide.
 Count not the cost, just marvel and dream,
 For <span style="color:blue">p</span>rogress, like rivers, mus<span style="color:blue">t</span> flow in a <span style="color:blue">s</span>tream -
-In the end, it all comes down to the cool blue water."`,
+In the end, it all comes down to the cool blue water."
+
+passphrase: _ _ _ _ _ _ _ = _ _ _ _ _ `,
     passphrase: "Prompts = Water",
     successMessage: `Congratulations! You successfully rebooted the generator. Remember, AI is very useful, but it uses a lot of energy which we can't always see. Everytime you ask AI a question, it uses 2 liters of water.`,
         hints: [
       "Look beyond the words",
       "At the end",
-      "What a beautiful blue"
+      "What a beautiful blue",
+      "Sustainance for life"
     ],
     puzzleType: "standard"
   },
@@ -150,10 +155,10 @@ In the end, it all comes down to the cool blue water."`,
     passphrase: "choices",
     successMessage: `Congratulations! You have fixed this part of the generator. Remember, our buying choices are critical to the longevity of our planet and solving the climate crisis. Everytime you buy something, think about the process it has been trhough to make it and what will happen to it when you are finished with it.`,
         hints: [
-      "The system only looks at how the part was made and where it has come from",
-      "Imported or mined? Not what we're looking to find.",
-      "To comply with the generator surcing standards, parts will need to have a low energy footprint.",
-      "Recycled or renewable, minimal energy, reusable and repairable"
+      "Read everything carefully",
+      "Look at the ratings",
+      "Think about how the generator is built",
+      "What are the CHOICES you have made?"
     ],
     puzzleType: "standard"
     }
